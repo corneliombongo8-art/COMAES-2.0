@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 
 function Login() {
   const [form, setForm] = useState({
@@ -11,14 +12,13 @@ function Login() {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-    setErrors({ ...errors, [e.target.name]: "" }); // limpa erro ao digitar
+    setErrors({ ...errors, [e.target.name]: "" });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     let newErrors = {};
 
-    // Campos obrigatórios
     if (!form.usuario) newErrors.usuario = "Este campo é obrigatório";
     if (!form.senha) newErrors.senha = "Este campo é obrigatório";
 
@@ -28,30 +28,60 @@ function Login() {
     }
 
     console.log("Login válido:", form);
-    // lógica de autenticação
   };
 
   return (
-    <div className="w-full h-screen grid grid-cols-1 md:grid-cols-2 bg-white text-black">
-      {/* Left Section - Image */}
-      <div className="hidden md:flex items-center justify-center bg-blue-600">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="w-full h-screen grid grid-cols-1 md:grid-cols-2 bg-white text-black"
+    >
+      {/* LEFT SECTION (IMAGE) */}
+      <motion.div
+        initial={{ opacity: 0, x: -40 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6 }}
+        className="hidden md:flex items-center justify-center bg-blue-600"
+      >
         <img
-          src="/comaes-preview.png"
+          src="/FrontEnd/src/assets/img.jpg"
           alt="Comaes Platform Preview"
           className="w-4/5 h-auto rounded-2xl shadow-2xl"
         />
-      </div>
+      </motion.div>
 
-      {/* Right Section - Login */}
+      {/* RIGHT SECTION (FORM) */}
       <div className="flex items-center justify-center p-8">
-        <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-200 transition-transform duration-300 hover:scale-105">
-          <h1 className="text-4xl font-bold text-blue-600 text-center mb-4">Comaes</h1>
-          <p className="text-center text-gray-700 mb-6">
-            Entre na melhor plataforma de competições educativas online
-          </p>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-200"
+        >
+          <motion.h1
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-4xl font-bold text-blue-600 text-center mb-4"
+          >
+            Comaes
+          </motion.h1>
 
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-center text-gray-700 mb-6"
+          >
+            Entre na melhor plataforma de competições educativas online
+          </motion.p>
+
+          {/* FORM */}
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-            <div>
+
+            {/* INPUT USUÁRIO */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
               <input
                 type="text"
                 name="usuario"
@@ -60,10 +90,13 @@ function Login() {
                 onChange={handleChange}
                 className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               />
-              {errors.usuario && <p className="text-red-600 text-sm mt-1">{errors.usuario}</p>}
-            </div>
+              {errors.usuario && (
+                <p className="text-red-600 text-sm mt-1">{errors.usuario}</p>
+              )}
+            </motion.div>
 
-            <div>
+            {/* INPUT SENHA */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
               <input
                 type="password"
                 name="senha"
@@ -72,22 +105,50 @@ function Login() {
                 onChange={handleChange}
                 className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               />
-              {errors.senha && <p className="text-red-600 text-sm mt-1">{errors.senha}</p>}
-            </div>
+              {errors.senha && (
+                <p className="text-red-600 text-sm mt-1">{errors.senha}</p>
+              )}
+            </motion.div>
 
-            <button type="submit" className="w-full mt-6 p-3 bg-blue-600 text-white rounded-xl text-lg font-semibold hover:bg-blue-700 transition">Entrar</button>
+            {/* BOTÃO ENTRAR */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+              type="submit"
+              className="w-full mt-6 p-3 bg-blue-600 text-white rounded-xl text-lg font-semibold hover:bg-blue-700 transition"
+            >
+              Entrar
+            </motion.button>
           </form>
 
-          <p className="mt-4 text-center text-sm">
-            ou <Link to="/Cadastro" className="text-blue-600 font-semibold hover:underline">Cadastrar-se</Link>
-          </p>
+          {/* LINHA DE CADASTRO */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.55 }}
+            className="mt-4 text-center text-sm"
+          >
+            ou{" "}
+            <Link to="/Cadastro" className="text-blue-600 font-semibold hover:underline">
+              Cadastrar-se
+            </Link>
+          </motion.p>
 
-          <p className="mt-2 text-center text-sm text-gray-600 hover:text-blue-600 cursor-pointer">
+          {/* ESQUECI A SENHA */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="mt-2 text-center text-sm text-gray-600 hover:text-blue-600 cursor-pointer"
+          >
+            <Link to="/recuperar-senha">
             Esqueci a minha senha
-          </p>
-        </div>
+            </Link>
+
+          </motion.p>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

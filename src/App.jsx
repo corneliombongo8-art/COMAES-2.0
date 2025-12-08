@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Login from "./Paginas/Primarias/Login";
 import Cadastro from "./Paginas/Primarias/Cadastro"
+import Recuperar from "./Paginas/Primarias/Recuperar";
 
 import Layout from "./Paginas/Secundarias/Layout";
 import Home from "./Paginas/Secundarias/Home";
@@ -13,7 +14,9 @@ import Perfil from "./Paginas/Secundarias/Perfil";
 import Sobre from "./Paginas/Secundarias/Sobre";
 import Suporte from "./Paginas/Secundarias/Suporte";
 import Teste from "./Paginas/Secundarias/Teste";
-import Torneio from "./Paginas/Tercearios.jsx/Torneio";
+
+import TorneioOriginal from "./Paginas/Tercearios.jsx/TorneioOriginal";
+import TorneioPremio from "./Paginas/Tercearios.jsx/TorneioPremio";
 
 
 export default function App() {
@@ -23,6 +26,7 @@ export default function App() {
       
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Cadastro />} />
+        <Route path="/recuperar-senha" element={<Recuperar />} />
 
         <Route path="/layout" element={<Layout />} />
         <Route path="/" element={<Home />} />
@@ -34,7 +38,10 @@ export default function App() {
         <Route path="/sobre-nos" element={<Sobre />} />
         <Route path="/suporte" element={<Suporte />} />
         <Route path="/teste-seu-conhecimento" element={<Teste />} />
-        <Route path="/torneio" element={<Torneio />} />
+
+        <Route path="/torneio-Original" element={<TorneioOriginal />} />
+        <Route path="/torneio-Premio" element={<TorneioPremio />} />
+
       </Routes>
     </BrowserRouter>
   );

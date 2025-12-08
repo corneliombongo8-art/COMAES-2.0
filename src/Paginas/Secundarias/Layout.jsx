@@ -1,6 +1,8 @@
 // Layout.jsx
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+
 import {
   FaBars, FaUserCircle, FaChartLine, FaBell, FaBook, FaTrophy, FaBullhorn,
   FaHeadset, FaCogs, FaInfoCircle, FaFacebook, FaInstagram,
@@ -18,7 +20,6 @@ export default function Layout({ children }) {
   const usuarioLogado = false;
   const usuario = { nome: "João Silva" };
 
-  // Menu com HOME + Sobre nós
   const menuItems = [
     { icon: <FaHome className="text-2xl" />, text: "Home", link: "/" },
     { icon: <FaTrophy className="text-2xl" />, text: "Entrar no Torneio", link: "/entrar-no-torneio" },
@@ -31,11 +32,13 @@ export default function Layout({ children }) {
     { icon: <FaHeadset className="text-2xl" />, text: "Suporte", link: "/suporte" },
   ];
 
+  // Detecta item ativo pelo pathname
   useEffect(() => {
     const index = menuItems.findIndex(i => i.link === location.pathname);
     setActiveItem(index);
   }, [location.pathname]);
 
+  // Fecha dropdown ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -46,77 +49,144 @@ export default function Layout({ children }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // ANIMAÇÕES
+  const sliderSmallVariants = {
+    hidden: { x: -80, opacity: 0 },
+    visible: { x: 0, opacity: 1, transition: { duration: 0.4 } }
+  };
+
+  const sliderBigVariants = {
+    hidden: { x: -300, opacity: 0 },
+    visible: { x: 0, opacity: 1, transition: { duration: 0.4 } },
+    exit: { x: -300, opacity: 0, transition: { duration: 0.3 } }
+  };
+
+  const overlayVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 }
+  };
+
+  const mainContentVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+  };
+
+  const menuItemVariants = {
+    hidden: { opacity: 0, x: -15 },
+    visible: (i) => ({
+      opacity: 1,
+      x: 0,
+      transition: { delay: i * 0.05 }
+    })
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-100 transition-all duration-300 relative">
 
-  {/* OVERLAY MOBILE */}
-  <div
-    className={`fixed inset-0 bg-black/70 z-40 md:hidden transition-opacity duration-300
-      ${menuOpen ? "opacity-100 visible" : "opacity-0 invisible"}`}
-    onClick={() => setMenuOpen(false)}
-  />
+      {/* OVERLAY MOBILE */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            variants={overlayVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            className="fixed inset-0 bg-black/70 z-40 md:hidden"
+            onClick={() => setMenuOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
-{/* SLIDER PEQUENO - SOMENTE ÍCONES (desktop) */}
-<div className="bg-black text-white fixed top-0 left-0 h-full z-50 shadow-lg w-20 p-3 flex-col items-center hidden md:flex">
-  <h1 className="text-3xl font-bold mt-1 text-blue-600">C</h1>
-  <ul className="flex flex-col gap-3 mt-8">
-    {menuItems.map((item, index) => (
-      <li key={index} className="hover:translate-x-1 hover:scale-95 transition-transform">
-        <Link
-          to={item.link}
-          onClick={() => setActiveItem(index)}
-          title={item.text}
-          className={`flex items-center justify-center w-10 h-10 rounded-md
-            ${activeItem === index ? "bg-blue-600 text-white" : "hover:bg-blue-700/70 text-white"}`}
-        >
-          {item.icon}
-        </Link>
-      </li>
-    ))}
-  </ul>
-</div>
+      {/* SLIDER PEQUENO (desktop) */}
+      <motion.div
+        variants={sliderSmallVariants}
+        initial="hidden"
+        animate="visible"
+        className="bg-black text-white fixed top-0 left-0 h-full z-50 shadow-lg w-20 p-3 flex-col items-center hidden md:flex"
+      >
+        <h1 className="text-3xl font-bold mt-1 text-blue-600">C</h1>
+        <ul className="flex flex-col gap-3 mt-8">
+          {menuItems.map((item, index) => (
+            <motion.li
+              key={index}
+              custom={index}
+              variants={menuItemVariants}
+              initial="hidden"
+              animate="visible"
+              className="hover:translate-x-1 hover:scale-95 transition-transform"
+            >
+              <Link
+                to={item.link}
+                onClick={() => setActiveItem(index)}
+                title={item.text}
+                className={`flex items-center justify-center w-10 h-10 rounded-md
+                  ${activeItem === index ? "bg-blue-600 text-white" : "hover:bg-blue-700/70 text-white"}`}
+              >
+                {item.icon}
+              </Link>
+            </motion.li>
+          ))}
+        </ul>
+      </motion.div>
 
-{/* SLIDER GRANDE - ÍCONES + TEXTO + LOGO + SUBTÍTULO (mobile + desktop quando aberto) */}
-<div className={`bg-black text-white fixed top-0 left-0 h-full z-50 shadow-lg w-80 p-4 flex flex-col transition-transform duration-300
-  ${menuOpen ? "flex" : "hidden"}`}>
-  
-  {/* LOGO + SUBTÍTULO */}
-  <div className="flex flex-col items-center mb-6">
-    <h1 className="text-3xl font-bold mt-1 text-blue-600">Comaes</h1>
-    <h4 className="text-gray-300 text-center mt-4 text-sm drop-shadow-sm">
-      Plataforma de Competições Educativa Online
-    </h4>
-  </div>
+      {/* SLIDER GRANDE (mobile + desktop aberto) */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            key="slider"
+            variants={sliderBigVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="bg-black text-white fixed top-0 left-0 h-full z-50 shadow-lg w-80 p-4 flex flex-col"
+          >
+            <div className="flex flex-col items-center mb-6">
+              <h1 className="text-3xl font-bold mt-1 text-blue-600">Comaes</h1>
+              <h4 className="text-gray-300 text-center mt-4 text-sm">
+                Plataforma de Competições Educativa Online
+              </h4>
+            </div>
 
-  {/* MENU COMPLETO */}
-  <ul className="flex flex-col gap-2">
-    {menuItems.map((item, index) => (
-      <li key={index} className="hover:translate-x-1 hover:scale-95 transition-transform">
-        <Link
-          to={item.link}
-          onClick={() => setActiveItem(index)}
-          className={`flex items-center gap-2 py-2 px-3 rounded-md transition-all duration-300
-            ${activeItem === index ? "bg-blue-600 text-white" : "hover:bg-blue-700/70 text-white"}`}
-        >
-          {item.icon}
-          <span className="text-sm md:text-base text-white truncate">{item.text}</span>
-        </Link>
-      </li>
-    ))}
-  </ul>
-</div>
+            <ul className="flex flex-col gap-2">
+              {menuItems.map((item, index) => (
+                <motion.li
+                  key={index}
+                  custom={index}
+                  variants={menuItemVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="hover:translate-x-1 hover:scale-95 transition-transform"
+                >
+                  <Link
+                    to={item.link}
+                    onClick={() => setActiveItem(index)}
+                    className={`flex items-center gap-2 py-2 px-3 rounded-md
+                      ${activeItem === index ? "bg-blue-600 text-white" : "hover:bg-blue-700/70 text-white"}`}
+                  >
+                    {item.icon}
+                    <span className="text-sm md:text-base">{item.text}</span>
+                  </Link>
+                </motion.li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-{/* MAIN CONTENT */}
-<div
-  className={`flex flex-col min-h-screen w-full transition-all duration-300
-    ${menuOpen ? "md:ml-80" : "md:ml-20"} 
-    md:transition-all
-  `}
->
-
+      {/* MAIN CONTENT */}
+      <div
+        className={`flex flex-col min-h-screen w-full transition-all duration-300
+          ${menuOpen ? "md:ml-80" : "md:ml-20"}
+        `}
+      >
 
         {/* HEADER */}
-        <header className="bg-blue-600 shadow-md sticky top-0 z-40">
+        <motion.header
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="bg-blue-600 shadow-md sticky top-0 z-40"
+        >
           <div className="flex items-center justify-between p-3 sm:p-4 max-w-7xl mx-auto">
             <div className="flex items-center gap-2 sm:gap-4">
               <button
@@ -128,7 +198,7 @@ export default function Layout({ children }) {
               <h1 className="text-xl sm:text-2xl font-bold text-white">Comaes</h1>
             </div>
 
-            {/* ÍCONES NO TOPO */}
+            {/* ICONS */}
             <div className="flex items-center gap-2 sm:gap-3 md:gap-5 pr-2 sm:pr-4 md:pr-6">
               {[{ icon: <FaBook />, link: "/teste-seu-conhecimento" },
                 { icon: <FaBell />, link: null },
@@ -157,7 +227,6 @@ export default function Layout({ children }) {
                   );
                 })}
 
-              {/* AUTH BUTTONS */}
               {!usuarioLogado && (
                 <div className="flex gap-2 sm:gap-3 md:gap-4 pl-2 sm:pl-4 md:pl-6">
                   <button
@@ -171,13 +240,25 @@ export default function Layout({ children }) {
               )}
             </div>
           </div>
-        </header>
+        </motion.header>
 
         {/* MAIN */}
-        <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto">{children}</main>
+        <motion.main
+          variants={mainContentVariants}
+          initial="hidden"
+          animate="visible"
+          className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto"
+        >
+          {children}
+        </motion.main>
 
         {/* FOOTER */}
-        <footer className="bg-gray-900 text-gray-300 mt-auto p-6 sm:p-8">
+        <motion.footer
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="bg-gray-900 text-gray-300 mt-auto p-6 sm:p-8"
+        >
           <div className="max-w-7xl mx-auto flex flex-col items-center gap-4 sm:gap-6">
             <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 text-sm md:text-base">
               {menuItems.map((item, index) => (
@@ -208,7 +289,8 @@ export default function Layout({ children }) {
           <div className="text-center text-gray-500 mt-4 sm:mt-6">
             &copy; 2025 Comaes - Plataforma de Competições Educativas Online. Todos os direitos reservados.
           </div>
-        </footer>
+        </motion.footer>
+
       </div>
     </div>
   );
