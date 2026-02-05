@@ -17,78 +17,123 @@ export default function NotificacoesModal({ isOpen, onClose }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Dados de exemplo para notificações
-  const exemploNotificacoes = [
-    {
-      id: 1,
-      title: "Novo Torneio Disponível",
-      message: "Torneio de Matemática Avançada está disponível para participação!",
-      icon: <FaTrophy className="text-yellow-500" />,
-      time: "Há 5 minutos",
-      read: false,
-      type: "torneio"
-    },
-    {
-      id: 2,
-      title: "Ranking Atualizado",
-      message: "Você subiu 3 posições no ranking de Programação",
-      icon: <IoMedal className="text-blue-500" />,
-      time: "Há 1 hora",
-      read: false,
-      type: "ranking"
-    },
-    {
-      id: 3,
-      title: "Lembrete de Torneio",
-      message: "Seu torneio de Inglês começa em 30 minutos",
-      icon: <IoTime className="text-purple-500" />,
-      time: "Há 2 horas",
-      read: true,
-      type: "lembrete"
-    },
-    {
-      id: 4,
-      title: "Conquista Desbloqueada",
-      message: "Parabéns! Você desbloqueou a conquista 'Mestre da Matemática'",
-      icon: <IoSparkles className="text-green-500" />,
-      time: "Ontem",
-      read: true,
-      type: "conquista"
-    },
-    {
-      id: 5,
-      title: "Novo Competidor",
-      message: "Maria Silva entrou no torneio de Programação",
-      icon: <FaUsers className="text-pink-500" />,
-      time: "2 dias atrás",
-      read: true,
-      type: "social"
+  const normalizeConteudo = (conteudo) => {
+    if (!conteudo) return {};
+    if (typeof conteudo === "string") {
+      try {
+        const parsed = JSON.parse(conteudo);
+        return parsed && typeof parsed === "object" ? parsed : { mensagem: conteudo };
+      } catch {
+        return { mensagem: conteudo };
+      }
     }
-  ];
-
-  useEffect(() => {
-    if (user && isOpen) {
-      // Carregar notificações do usuário
-      setNotifications(exemploNotificacoes);
-      const unread = exemploNotificacoes.filter(n => !n.read).length;
-      setUnreadCount(unread);
-    }
-  }, [user, isOpen]);
-
-  const marcarComoLida = (id) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === id ? { ...notif, read: true } : notif
-      )
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
+    if (typeof conteudo === "object") return conteudo;
+    return {};
   };
 
-  const marcarTodasComoLidas = () => {
-    setNotifications(prev => 
-      prev.map(notif => ({ ...notif, read: true }))
-    );
-    setUnreadCount(0);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (user && user.id && isOpen) {
+        try {
+          const response = await fetch(`http://localhost:3000/usuarios/${user.id}/notificacoes`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          const data = await response.json();
+          if (data.success) {
+            // Formatar notificações vindas do banco
+            const formatted = data.data.map((n) => {
+              const conteudo = normalizeConteudo(n.conteudo);
+              const title = conteudo.titulo || conteudo.title || n.tipo || "";
+              const message = conteudo.mensagem || conteudo.message || conteudo.texto || "";
+
+              return {
+                id: n.id,
+                title,
+                message,
+                read: Boolean(n.lido),
+                type: n.tipo || "geral",
+                time: formatTime(n.criado_em),
+                icon: getIconForType(n.tipo)
+              };
+            });
+            setNotifications(formatted);
+            setUnreadCount(formatted.filter(n => !n.read).length);
+          }
+        } catch (error) {
+          console.error("Erro ao carregar notificações:", error);
+        }
+      }
+    };
+
+    fetchNotifications();
+  }, [user, isOpen]);
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) return "Agora mesmo";
+    if (diffInSeconds < 3600) return `Há ${Math.floor(diffInSeconds / 60)} min`;
+    if (diffInSeconds < 86400) return `Há ${Math.floor(diffInSeconds / 3600)} h`;
+    if (diffInSeconds < 172800) return "Ontem";
+    return date.toLocaleDateString();
+  };
+
+  const getIconForType = (type) => {
+    switch(type) {
+      case 'torneio': return <FaTrophy className="text-yellow-500" />;
+      case 'ranking': return <IoMedal className="text-blue-500" />;
+      case 'lembrete': return <IoTime className="text-purple-500" />;
+      case 'conquista': return <IoSparkles className="text-green-500" />;
+      case 'social': return <FaUsers className="text-pink-500" />;
+      default: return <FaBell className="text-gray-500" />;
+    }
+  };
+
+  const marcarComoLida = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:3000/notificacoes/${id}/lido`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif.id === id ? { ...notif, read: true } : notif
+          )
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error("Erro ao marcar como lida:", error);
+    }
+  };
+
+  const marcarTodasComoLidas = async () => {
+    try {
+      const response = await fetch(`http://localhost:3000/usuarios/${user.id}/notificacoes/lido-todas`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setNotifications(prev => 
+          prev.map(notif => ({ ...notif, read: true }))
+        );
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error("Erro ao marcar todas como lidas:", error);
+    }
   };
 
   const getTypeColor = (type) => {

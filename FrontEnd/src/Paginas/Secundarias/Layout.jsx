@@ -35,13 +35,6 @@ export default function Layout({ children }) {
     { icon: <FaHeadset className="text-2xl" />, text: "Suporte", link: "/suporte" },
   ];
 
-  const exemploNotificacoes = [
-    { id: 1, read: false },
-    { id: 2, read: false },
-    { id: 3, read: true },
-    { id: 4, read: true },
-    { id: 5, read: true }
-  ];
 
   // Detecta item ativo pelo pathname
   useEffect(() => {
@@ -51,12 +44,31 @@ export default function Layout({ children }) {
 
   // Atualiza contador de notificações
   useEffect(() => {
-    if (user) {
-      const unreadCount = exemploNotificacoes.filter(n => !n.read).length;
-      setNotificationCount(unreadCount);
-    } else {
-      setNotificationCount(0);
-    }
+    const fetchNotificationCount = async () => {
+      if (user && user.id) {
+        try {
+          const response = await fetch(`http://localhost:3000/usuarios/${user.id}/notificacoes/nao-lidas/count`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          const data = await response.json();
+          if (data.success) {
+            setNotificationCount(data.count);
+          }
+        } catch (error) {
+          console.error("Erro ao buscar contagem de notificações:", error);
+        }
+      } else {
+        setNotificationCount(0);
+      }
+    };
+
+    fetchNotificationCount();
+    
+    // Opcional: Polling a cada 60 segundos
+    const interval = setInterval(fetchNotificationCount, 60000);
+    return () => clearInterval(interval);
   }, [user]);
 
   // Fecha dropdown ao clicar fora

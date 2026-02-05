@@ -3,7 +3,12 @@ import adminService from '../../services/adminService';
 import TableModal from './TableModal';
 import TorneoParticipantsManager from './TorneoParticipantsManager';
 
+import { useAuth } from '../../context/AuthContext';
+
 const TableManager = ({ table }) => {
+    const { token } = useAuth();
+    const services = adminService(token);
+
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -14,37 +19,218 @@ const TableManager = ({ table }) => {
     const [expandedTorneo, setExpandedTorneo] = useState(null);
     const [tableInfo, setTableInfo] = useState(null);
 
-    // Get the appropriate service
-    const getService = () => {
-        return adminService[table];
-    };
+    // Get the appropriate service for the current table
+    const tableService = services[table];
 
     // Static table definitions (only when specific customizations are needed)
     const staticTableDefs = {
+        users: {
+            title: 'Usuários',
+            columns: ['id', 'nome', 'email', 'telefone', 'isAdmin'],
+            displayColumns: ['ID', 'Nome', 'Email', 'Telefone', 'Admin'],
+            fields: [
+                { name: 'nome', label: 'Nome', type: 'text', required: true },
+                { name: 'email', label: 'Email', type: 'email', required: true },
+                { name: 'telefone', label: 'Telefone', type: 'text' },
+                { name: 'nascimento', label: 'Data de Nascimento', type: 'date' },
+                { name: 'sexo', label: 'Sexo', type: 'select', options: ['Masculino', 'Feminino'] },
+                { name: 'escola', label: 'Escola', type: 'text' },
+                { name: 'biografia', label: 'Biografia', type: 'textarea' },
+                { name: 'isAdmin', label: 'Administrador', type: 'checkbox' }
+            ]
+        },
         torneos: {
             title: 'Torneios',
-            columns: ['id', 'titulo', 'descricao', 'status'],
-            displayColumns: ['ID', 'Título', 'Descrição', 'Status'],
+            columns: ['id', 'titulo', 'slug', 'status'],
+            displayColumns: ['ID', 'Título', 'Slug', 'Status'],
             fields: [
                 { name: 'titulo', label: 'Título', type: 'text', required: true },
+                { name: 'slug', label: 'Slug', type: 'text' },
                 { name: 'descricao', label: 'Descrição', type: 'textarea' },
                 { name: 'inicia_em', label: 'Data de Início', type: 'datetime-local' },
                 { name: 'termina_em', label: 'Data de Término', type: 'datetime-local' },
                 { name: 'maximo_participantes', label: 'Máximo de Participantes', type: 'number' },
-                { name: 'status', label: 'Status', type: 'select', options: ['rascunho', 'agendado', 'ativo', 'finalizado', 'cancelado'] }
+                { name: 'status', label: 'Status', type: 'select', options: ['rascunho', 'agendado', 'ativo', 'finalizado', 'cancelado'] },
+                { name: 'publico', label: 'Público', type: 'checkbox' }
             ]
         },
         noticias: {
             title: 'Notícias',
-            columns: ['id', 'titulo', 'conteudo', 'data_publicacao'],
-            displayColumns: ['ID', 'Título', 'Conteúdo', 'Data'],
+            columns: ['id', 'titulo', 'data_publicacao'],
+            displayColumns: ['ID', 'Título', 'Data'],
             fields: [
                 { name: 'titulo', label: 'Título', type: 'text', required: true },
                 { name: 'conteudo', label: 'Conteúdo', type: 'textarea', required: true },
-                { name: 'data_publicacao', label: 'Data de Publicação', type: 'datetime-local' }
+                { name: 'data_publicacao', label: 'Data de Publicação', type: 'datetime-local' },
+                { name: 'imagem_url', label: 'URL da Imagem', type: 'text' },
+                { name: 'autor_id', label: 'ID do Autor', type: 'number' }
             ]
         },
-        // ... keep other specific static definitions if desired
+        funcoes: {
+            title: 'Funções',
+            columns: ['id', 'nome'],
+            displayColumns: ['ID', 'Nome'],
+            fields: [
+                { name: 'nome', label: 'Nome', type: 'text', required: true },
+                { name: 'permissoes', label: 'Permissões (JSON)', type: 'textarea' }
+            ]
+        },
+        tickets: {
+            title: 'Tickets de Suporte',
+            columns: ['id', 'assunto', 'status', 'prioridade'],
+            displayColumns: ['ID', 'Assunto', 'Status', 'Prioridade'],
+            fields: [
+                { name: 'usuario_id', label: 'ID do Usuário', type: 'number' },
+                { name: 'assunto', label: 'Assunto', type: 'text', required: true },
+                { name: 'mensagem', label: 'Mensagem', type: 'textarea', required: true },
+                { name: 'status', label: 'Status', type: 'select', options: ['aberto', 'pendente', 'fechado'] },
+                { name: 'prioridade', label: 'Prioridade', type: 'select', options: ['baixa', 'media', 'alta'] },
+                { name: 'atribuido_para', label: 'Atribuído Para (ID)', type: 'number' }
+            ]
+        },
+        conquistas: {
+            title: 'Conquistas',
+            columns: ['id', 'nome'],
+            displayColumns: ['ID', 'Nome'],
+            fields: [
+                { name: 'nome', label: 'Nome', type: 'text', required: true },
+                { name: 'descricao', label: 'Descrição', type: 'textarea' },
+                { name: 'criterios', label: 'Critérios (JSON)', type: 'textarea' },
+                { name: 'url_icone', label: 'URL do Ícone', type: 'text' }
+            ]
+        },
+        configuracoes_usuario: {
+            title: 'Configurações de Usuário',
+            columns: ['usuario_id'],
+            displayColumns: ['ID Usuário'],
+            fields: [
+                { name: 'usuario_id', label: 'ID do Usuário', type: 'number', required: true },
+                { name: 'preferencias', label: 'Preferências (JSON)', type: 'textarea' }
+            ]
+        },
+        conquistas_usuario: {
+            title: 'Conquistas de Usuário',
+            columns: ['id', 'usuario_id', 'conquista_id'],
+            displayColumns: ['ID', 'Usuário ID', 'Conquista ID'],
+            fields: [
+                { name: 'usuario_id', label: 'ID do Usuário', type: 'number', required: true },
+                { name: 'conquista_id', label: 'ID da Conquista', type: 'number', required: true },
+                { name: 'concedido_por', label: 'Concedido Por (ID)', type: 'number' }
+            ]
+        },
+        notificacoes: {
+            title: 'Notificações',
+            columns: ['id', 'usuario_id', 'tipo', 'lido'],
+            displayColumns: ['ID', 'Usuário ID', 'Tipo', 'Lido'],
+            fields: [
+                { name: 'usuario_id', label: 'ID do Usuário', type: 'number', required: true },
+                { name: 'tipo', label: 'Tipo', type: 'text', required: true },
+                { name: 'conteudo', label: 'Conteúdo (JSON)', type: 'textarea', required: true },
+                { name: 'lido', label: 'Lido', type: 'checkbox' }
+            ]
+        },
+        participantes_torneio: {
+            title: 'Participantes de Torneio',
+            columns: ['id', 'torneio_id', 'usuario_id', 'status', 'pontuacao'],
+            displayColumns: ['ID', 'Torneio ID', 'Usuário ID', 'Status', 'Pontos'],
+            fields: [
+                { name: 'torneio_id', label: 'ID do Torneio', type: 'number', required: true },
+                { name: 'usuario_id', label: 'ID do Usuário', type: 'number', required: true },
+                { name: 'status', label: 'Status', type: 'select', options: ['pendente', 'confirmado', 'removido'] },
+                { name: 'pontuacao', label: 'Pontuação', type: 'number' },
+                { name: 'posicao', label: 'Posição', type: 'number' },
+                { name: 'casos_resolvidos', label: 'Casos Resolvidos', type: 'number' },
+                { name: 'disciplina_competida', label: 'Disciplina', type: 'select', options: ['Matemática', 'Inglês', 'Programação'] }
+            ]
+        },
+        perguntas: {
+            title: 'Perguntas',
+            columns: ['id', 'texto_pergunta', 'tipo', 'pontos'],
+            displayColumns: ['ID', 'Pergunta', 'Tipo', 'Pontos'],
+            fields: [
+                { name: 'ordem_indice', label: 'Ordem', type: 'number', required: true },
+                { name: 'tipo', label: 'Tipo', type: 'select', options: ['matematica', 'ingles', 'programacao', 'multipla_escolha', 'texto'], required: true },
+                { name: 'texto_pergunta', label: 'Texto da Pergunta', type: 'textarea', required: true },
+                { name: 'opcao_a', label: 'Opção A', type: 'text' },
+                { name: 'opcao_b', label: 'Opção B', type: 'text' },
+                { name: 'opcao_c', label: 'Opção C', type: 'text' },
+                { name: 'opcao_d', label: 'Opção D', type: 'text' },
+                { name: 'resposta_correta', label: 'Resposta Correta (JSON)', type: 'textarea' },
+                { name: 'pontos', label: 'Pontos', type: 'number' },
+                { name: 'midia', label: 'Mídia (JSON)', type: 'textarea' }
+            ]
+        },
+        questoes_ingles: {
+            title: 'Questões de Inglês',
+            columns: ['id', 'titulo', 'dificuldade', 'pontos'],
+            displayColumns: ['ID', 'Título', 'Dificuldade', 'Pontos'],
+            fields: [
+                { name: 'titulo', label: 'Título', type: 'text', required: true },
+                { name: 'descricao', label: 'Descrição', type: 'textarea', required: true },
+                { name: 'dificuldade', label: 'Dificuldade', type: 'select', options: ['facil', 'medio', 'dificil'], required: true },
+                { name: 'torneio_id', label: 'ID do Torneio', type: 'number', required: true },
+                { name: 'resposta_correta', label: 'Resposta Correta', type: 'textarea', required: true },
+                { name: 'opcoes', label: 'Opções (JSON)', type: 'textarea' },
+                { name: 'pontos', label: 'Pontos', type: 'number' },
+                { name: 'midia', label: 'Mídia (JSON)', type: 'textarea' }
+            ]
+        },
+        questoes_matematica: {
+            title: 'Questões de Matemática',
+            columns: ['id', 'titulo', 'dificuldade', 'pontos'],
+            displayColumns: ['ID', 'Título', 'Dificuldade', 'Pontos'],
+            fields: [
+                { name: 'titulo', label: 'Título', type: 'text', required: true },
+                { name: 'enunciado', label: 'Enunciado', type: 'textarea', required: true },
+                { name: 'dificuldade', label: 'Dificuldade', type: 'select', options: ['facil', 'medio', 'dificil'], required: true },
+                { name: 'torneio_id', label: 'ID do Torneio', type: 'number', required: true },
+                { name: 'correta', label: 'Correta (JSON)', type: 'textarea' },
+                { name: 'opcoes', label: 'Opções (JSON)', type: 'textarea' },
+                { name: 'pontos', label: 'Pontos', type: 'number' },
+                { name: 'midia', label: 'Mídia (JSON)', type: 'textarea' }
+            ]
+        },
+        questoes_programacao: {
+            title: 'Questões de Programação',
+            columns: ['id', 'titulo', 'dificuldade', 'pontos', 'linguagem'],
+            displayColumns: ['ID', 'Título', 'Dificuldade', 'Pontos', 'Linguagem'],
+            fields: [
+                { name: 'titulo', label: 'Título', type: 'text', required: true },
+                { name: 'descricao', label: 'Descrição', type: 'textarea', required: true },
+                { name: 'dificuldade', label: 'Dificuldade', type: 'select', options: ['facil', 'medio', 'dificil'], required: true },
+                { name: 'torneio_id', label: 'ID do Torneio', type: 'number', required: true },
+                { name: 'resposta_correta', label: 'Resposta Correta', type: 'textarea', required: true },
+                { name: 'opcoes', label: 'Opções (JSON)', type: 'textarea' },
+                { name: 'pontos', label: 'Pontos', type: 'number' },
+                { name: 'midia', label: 'Mídia (JSON)', type: 'textarea' },
+                { name: 'linguagem', label: 'Linguagem', type: 'text' }
+            ]
+        },
+        redefinicoes_senha: {
+            title: 'Redefinições de Senha',
+            columns: ['id', 'usuario_id', 'expira_em', 'usado_em'],
+            displayColumns: ['ID', 'Usuário ID', 'Expira em', 'Usado em'],
+            fields: [
+                { name: 'usuario_id', label: 'ID do Usuário', type: 'number', required: true },
+                { name: 'hash_token', label: 'Hash do Token', type: 'text', required: true },
+                { name: 'expira_em', label: 'Expira em', type: 'datetime-local', required: true },
+                { name: 'usado_em', label: 'Usado em', type: 'datetime-local' }
+            ]
+        },
+        tentativas_teste: {
+            title: 'Tentativas de Teste',
+            columns: ['id', 'usuario_id', 'pontuacao', 'status'],
+            displayColumns: ['ID', 'Usuário ID', 'Pontos', 'Status'],
+            fields: [
+                { name: 'usuario_id', label: 'ID do Usuário', type: 'number', required: true },
+                { name: 'iniciado_em', label: 'Iniciado em', type: 'datetime-local' },
+                { name: 'concluido_em', label: 'Concluído em', type: 'datetime-local' },
+                { name: 'respostas', label: 'Respostas (JSON)', type: 'textarea' },
+                { name: 'pontuacao', label: 'Pontuação', type: 'number' },
+                { name: 'status', label: 'Status', type: 'select', options: ['em_progresso', 'concluida', 'cancelada'] },
+                { name: 'duracao_segundos', label: 'Duração (s)', type: 'number' }
+            ]
+        }
     };
 
     // Build a generic tableInfo from fetched data
@@ -74,15 +260,14 @@ const TableManager = ({ table }) => {
 
     // Fetch data
     const fetchData = async () => {
+        if (!tableService) return;
         setLoading(true);
         setError('');
         try {
-            const service = getService();
-            const result = await service.getAll();
+            const result = await tableService.getAll();
             const rows = Array.isArray(result) ? result : (result ? [result] : []);
             setData(rows);
 
-            // Determine tableInfo: prefer static if available, otherwise build from data
             if (staticTableDefs[table]) {
                 setTableInfo(staticTableDefs[table]);
             } else {
@@ -99,7 +284,7 @@ const TableManager = ({ table }) => {
 
     useEffect(() => {
         fetchData();
-    }, [table]);
+    }, [tableService, table]);
 
     const handleAdd = () => {
         setModalMode('create');
@@ -125,14 +310,14 @@ const TableManager = ({ table }) => {
     };
 
     const handleModalSubmit = async (formData) => {
+        if (!tableService) return;
         try {
-            const service = getService();
             if (modalMode === 'create') {
-                await service.create(formData);
+                await tableService.create(formData);
             } else if (modalMode === 'edit') {
-                await service.update(selectedItem.id, formData);
+                await tableService.update(selectedItem.id, formData);
             } else if (modalMode === 'delete') {
-                await service.delete(selectedItem.id);
+                await tableService.delete(selectedItem.id);
             }
             handleModalClose();
             await fetchData();

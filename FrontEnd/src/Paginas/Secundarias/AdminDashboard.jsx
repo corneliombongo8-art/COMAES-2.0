@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import UserManagement from '../../components/admin/UserManagement';
 import TableManager from '../../components/admin/TableManager';
+import adminService from '../../services/adminService';
 
 const AdminDashboard = () => {
     const { user } = useAuth();
@@ -11,15 +11,11 @@ const AdminDashboard = () => {
         { id: 'users', label: 'Usuários', icon: '👤' },
         { id: 'torneos', label: 'Torneios', icon: '🏆' },
         { id: 'noticias', label: 'Notícias', icon: '📰' },
-        { id: 'testes', label: 'Testes', icon: '📚' },
         { id: 'funcoes', label: 'Funções', icon: '🔑' },
         { id: 'tickets', label: 'Tickets', icon: '🎫' },
         { id: 'conquistas', label: 'Conquistas', icon: '⭐' },
-        { id: 'comentarios', label: 'Comentários', icon: '💬' },
         { id: 'configuracoes_usuario', label: 'Config. Usuário', icon: '⚙️' },
         { id: 'conquistas_usuario', label: 'Conquistas Usuário', icon: '🎖️' },
-        { id: 'logs_atividade', label: 'Logs', icon: '📋' },
-        { id: 'midia', label: 'Mídia', icon: '🖼️' },
         { id: 'notificacoes', label: 'Notificações', icon: '🔔' },
         { id: 'participantes_torneio', label: 'Participantes', icon: '👥' },
         { id: 'perguntas', label: 'Perguntas', icon: '❓' },
@@ -27,7 +23,6 @@ const AdminDashboard = () => {
         { id: 'questoes_matematica', label: 'Questões Matemática', icon: '🔢' },
         { id: 'questoes_programacao', label: 'Questões Prog.', icon: '💻' },
         { id: 'redefinicoes_senha', label: 'Redefinições', icon: '🔐' },
-        { id: 'sessoes', label: 'Sessões', icon: '🔗' },
         { id: 'tentativas_teste', label: 'Tentativas', icon: '✏️' },
     ];
 
@@ -94,27 +89,7 @@ const AdminDashboard = () => {
 
                 {/* Content Area */}
                 <div className="flex-1 overflow-auto">
-                    {activeTab === 'users' && <UserManagement />}
-                    {activeTab === 'torneos' && <TableManager table="torneos" />}
-                    {activeTab === 'noticias' && <TableManager table="noticias" />}
-                    {activeTab === 'testes' && <TableManager table="testes" />}
-                    {activeTab === 'funcoes' && <TableManager table="funcoes" />}
-                    {activeTab === 'tickets' && <TableManager table="tickets" />}
-                    {activeTab === 'conquistas' && <TableManager table="conquistas" />}
-                    {activeTab === 'comentarios' && <TableManager table="comentarios" />}
-                    {activeTab === 'configuracoes_usuario' && <TableManager table="configuracoes_usuario" />}
-                    {activeTab === 'conquistas_usuario' && <TableManager table="conquistas_usuario" />}
-                    {activeTab === 'logs_atividade' && <TableManager table="logs_atividade" />}
-                    {activeTab === 'midia' && <TableManager table="midia" />}
-                    {activeTab === 'notificacoes' && <TableManager table="notificacoes" />}
-                    {activeTab === 'participantes_torneio' && <TableManager table="participantes_torneio" />}
-                    {activeTab === 'perguntas' && <TableManager table="perguntas" />}
-                    {activeTab === 'questoes_ingles' && <TableManager table="questoes_ingles" />}
-                    {activeTab === 'questoes_matematica' && <TableManager table="questoes_matematica" />}
-                    {activeTab === 'questoes_programacao' && <TableManager table="questoes_programacao" />}
-                    {activeTab === 'redefinicoes_senha' && <TableManager table="redefinicoes_senha" />}
-                    {activeTab === 'sessoes' && <TableManager table="sessoes" />}
-                    {activeTab === 'tentativas_teste' && <TableManager table="tentativas_teste" />}
+                    <TableManager table={activeTab} />
                 </div>
             </div>
         </div>

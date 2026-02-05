@@ -43,15 +43,18 @@ export default function Profile() {
   const [editData, setEditData] = useState({ 
     name: user?.fullName || "Usuário COMAES",
     email: user?.email || "usuario@comaes.com",
-    joinDate: "15 de Março, 2024",
-    bio: "Estudante apaixonado por aprendizado e desafios educativos!",
+    joinDate: user?.createdAt || "Undefined",
+    bio: user?.biografia || "",
     institution: "Plataforma COMAES",
     course: "Estudante Avançado",
     location: "Online"
   });
   const [selectedFile, setSelectedFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState(null); // 'success' | 'error' | null
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [profileStatus, setProfileStatus] = useState(null);
+  const [profileMessage, setProfileMessage] = useState('');
+  const [avatarStatus, setAvatarStatus] = useState(null);
 
   // Verificar se usuário está autenticado
   React.useEffect(() => {
@@ -65,14 +68,70 @@ export default function Profile() {
     }
   }, [user, navigate]);
 
+  React.useEffect(() => {
+    if (!user || isEditing) return;
+    setEditData(prev => ({
+      ...prev,
+      name: user.fullName || prev.name,
+      email: user.email || prev.email,
+      bio: user.biografia || prev.bio
+    }));
+  }, [user, isEditing]);
+
   const handleSave = async () => {
-    // Se há arquivo selecionado, faça upload
-    if (selectedFile) {
-      await handleUpload();
-      return;
+    if (!user) return;
+
+    setProfileStatus(null);
+    setProfileMessage('');
+    setIsSavingProfile(true);
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(`http://localhost:3000/usuarios/${user.id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          nome: editData.name,
+          email: editData.email,
+          biografia: editData.bio
+        })
+      });
+
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(body.error || 'Não foi possível atualizar o perfil.');
+      }
+
+      login(body.data, token);
+      setProfileStatus('success');
+      setProfileMessage('Informações atualizadas com sucesso!');
+      setTimeout(() => setProfileStatus(null), 2500);
+
+      if (selectedFile) {
+        setAvatarStatus(null);
+        await handleUpload();
+      } else {
+        setIsEditing(false);
+      }
+    } catch (error) {
+      console.error('Erro ao salvar perfil:', error);
+      const message = error.message || 'Erro ao atualizar o perfil.';
+      setProfileStatus('error');
+      setProfileMessage(message);
+      alert('❌ ' + message);
+    } finally {
+      setIsSavingProfile(false);
     }
-    // Aqui você poderia enviar outras alterações ao backend (nome, bio, etc.)
-    setIsEditing(false);
+  };
+
+  const handleToggleEdit = () => {
+    setProfileStatus(null);
+    setProfileMessage('');
+    setAvatarStatus(null);
+    setSelectedFile(null);
+    setIsEditing(prev => !prev);
   };
 
   const handleFileChange = (e) => {
@@ -82,41 +141,41 @@ export default function Profile() {
 
   const handleUpload = async () => {
     if (!selectedFile) return;
-    setUploading(true);
-    setUploadStatus(null);
+    setIsUploadingAvatar(true);
+    setAvatarStatus(null);
     try {
       const fd = new FormData();
       fd.append('avatar', selectedFile);
+      const headers = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
       const res = await fetch(`http://localhost:3000/usuarios/${user.id}/avatar`, {
         method: 'POST',
-        headers: {
-          Authorization: token ? `Bearer ${token}` : ''
-        },
+        headers,
         body: fd
       });
       const body = await res.json();
       if (!res.ok) {
-        setUploadStatus('error');
+        setAvatarStatus('error');
         alert('❌ ' + (body.error || 'Falha ao enviar imagem'));
       } else {
-        setUploadStatus('success');
-        // Atualizar usuário no contexto com novos dados
+        setAvatarStatus('success');
         login(body.data, token);
         setSelectedFile(null);
-        // Auto-dismiss edit mode após 2s
         setTimeout(() => {
           setIsEditing(false);
-          setUploadStatus(null);
+          setAvatarStatus(null);
         }, 2000);
       }
     } catch (err) {
       console.error('Erro upload:', err);
-      setUploadStatus('error');
-      alert('❌ Erro ao enviar imagem. Tente novamente.');
+      setAvatarStatus('error');
+      alert('❌ ' + (err.message || 'Erro ao enviar imagem. Tente novamente.'));
     } finally {
-      setUploading(false);
+      setIsUploadingAvatar(false);
     }
   };
+
+  const isProcessing = isSavingProfile || isUploadingAvatar;
 
   const handleLogout = () => {
     logout();
@@ -206,7 +265,7 @@ export default function Profile() {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-3xl font-bold text-gray-900">Meu Perfil COMAES</h2>
             <button 
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={handleToggleEdit}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Edit className="h-4 w-4" />
@@ -271,6 +330,16 @@ export default function Profile() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 h-24"
                       />
                     </div>
+                    {profileStatus === 'success' && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm font-medium text-green-900">✅ {profileMessage || 'Perfil atualizado com sucesso!'}</p>
+                      </div>
+                    )}
+                    {profileStatus === 'error' && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm font-medium text-red-900">❌ {profileMessage || 'Erro ao atualizar o perfil.'}</p>
+                      </div>
+                    )}
                     {selectedFile && (
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm font-medium text-blue-900">
@@ -278,12 +347,12 @@ export default function Profile() {
                         </p>
                       </div>
                     )}
-                    {uploadStatus === 'success' && (
+                    {avatarStatus === 'success' && (
                       <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                         <p className="text-sm font-medium text-green-900">✅ Imagem enviada com sucesso!</p>
                       </div>
                     )}
-                    {uploadStatus === 'error' && (
+                    {avatarStatus === 'error' && (
                       <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p className="text-sm font-medium text-red-900">❌ Erro ao enviar imagem</p>
                       </div>
@@ -291,23 +360,25 @@ export default function Profile() {
                     <div className="flex space-x-3">
                       <button 
                         onClick={handleSave}
-                        disabled={uploading || !selectedFile}
+                        disabled={isProcessing}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                       >
-                        {uploading ? (
+                        {isProcessing ? (
                           <>
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            <span>Enviando...</span>
+                            <span>Salvando perfil...</span>
                           </>
                         ) : (
-                          <span>Salvar Foto</span>
+                          <span>Salvar alterações</span>
                         )}
                       </button>
                       <button 
                         onClick={() => {
                           setIsEditing(false);
                           setSelectedFile(null);
-                          setUploadStatus(null);
+                          setProfileStatus(null);
+                          setProfileMessage('');
+                          setAvatarStatus(null);
                         }}
                         className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                       >

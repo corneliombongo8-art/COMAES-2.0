@@ -48,53 +48,133 @@ function Dashboard() {
   // Estado inicial com dados do usuário
   const [userData, setUserData] = useState({
     username: user?.fullName || user?.username || "Usuário COMAES",
-    joinDate: user?.registrationDate || "2024-01-15",
-    totalPoints: user?.points || 2450,
-    currentRank: 45,
-    previousRank: 52,
-    tournamentsPlayed: 18,
-    tournamentsWon: 7,
-    prizesWon: 3
+    joinDate: user?.registrationDate || new Date().toISOString(),
+    totalPoints: user?.points || 0,
+    currentRank: 0,
+    previousRank: 0,
+    tournamentsPlayed: 0,
+    tournamentsWon: 0,
+    prizesWon: 0
   });
 
   // Dados de participação em torneios
-  const [tournamentHistory, setTournamentHistory] = useState([
-    { id: 1, name: "Math Olympiad 2024", date: "2024-03-15", position: 1, points: 300, category: "Matemática" },
-    { id: 2, name: "Code Challenge Pro", date: "2024-02-28", position: 3, points: 200, category: "Programação" },
-    { id: 3, name: "English Master Cup", date: "2024-02-10", position: 2, points: 250, category: "Inglês" },
-    { id: 4, name: "Math Sprint 2024", date: "2024-01-20", position: 1, points: 350, category: "Matemática" },
-    { id: 5, name: "Programming Hackathon", date: "2023-12-05", position: 4, points: 150, category: "Programação" },
-  ]);
+  const [tournamentHistory, setTournamentHistory] = useState([]);
 
   // Dados para gráfico de áreas
-  const [areaParticipation, setAreaParticipation] = useState([
-    { name: 'Matemática', value: 8, color: '#3B82F6' },
-    { name: 'Programação', value: 6, color: '#10B981' },
-    { name: 'Inglês', value: 4, color: '#F59E0B' },
-  ]);
+  const [areaParticipation, setAreaParticipation] = useState([]);
 
   // Dados para gráfico de progresso do ranking
   const [rankingHistory, setRankingHistory] = useState([
-    { month: 'Jan', rank: 85 },
-    { month: 'Fev', rank: 72 },
-    { month: 'Mar', rank: 68 },
-    { month: 'Abr', rank: 52 },
-    { month: 'Mai', rank: 45 },
+    { month: 'Jan', rank: 100 },
+    { month: 'Fev', rank: 90 },
+    { month: 'Mar', rank: 80 },
+    { month: 'Abr', rank: 70 },
+    { month: 'Mai', rank: 60 },
   ]);
 
   // Dados para gráfico de pontos por categoria
-  const [pointsByCategory, setPointsByCategory] = useState([
-    { category: 'Matemática', pontos: 1250 },
-    { category: 'Programação', pontos: 750 },
-    { category: 'Inglês', pontos: 450 },
-  ]);
+  const [pointsByCategory, setPointsByCategory] = useState([]);
 
   // Dados para gráfico de premiações
   const [prizesDistribution, setPrizesDistribution] = useState([
-    { position: '1º Lugar', quantidade: 3, color: '#FFD700' },
-    { position: '2º Lugar', quantidade: 2, color: '#C0C0C0' },
-    { position: '3º Lugar', quantidade: 2, color: '#CD7F32' },
+    { position: '1º Lugar', quantidade: 0, color: '#FFD700' },
+    { position: '2º Lugar', quantidade: 0, color: '#C0C0C0' },
+    { position: '3º Lugar', quantidade: 0, color: '#CD7F32' },
   ]);
+
+  const [loading, setLoading] = useState(true);
+
+  // Buscar dados dinâmicos do backend
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user?.id) return;
+      
+      setLoading(true);
+      try {
+        // Fetch participações
+        const response = await fetch(`http://localhost:3000/usuarios/${user.id}/participacoes`);
+        const result = await response.json();
+        
+        // Fetch ranking global
+        const rankingResponse = await fetch(`http://localhost:3000/usuarios/${user.id}/ranking-global`);
+        const rankingResult = await rankingResponse.json();
+        
+        if (result.success) {
+          const participacoes = result.data;
+          
+          // Calcular estatísticas
+          const totalPoints = participacoes.reduce((acc, p) => acc + Number(p.pontuacao), 0);
+          const tournamentsPlayed = participacoes.length;
+          const tournamentsWon = participacoes.filter(p => p.posicao === 1).length;
+          const prizesWon = participacoes.filter(p => p.posicao && p.posicao <= 3).length;
+          
+          setUserData(prev => ({
+            ...prev,
+            totalPoints,
+            tournamentsPlayed,
+            tournamentsWon,
+            prizesWon,
+            currentRank: rankingResult.success ? rankingResult.data.posicao : 0,
+            username: user?.fullName || user?.username || prev.username,
+            joinDate: user?.registrationDate || prev.joinDate
+          }));
+
+          // Histórico de torneios
+          const history = participacoes.map(p => ({
+            id: p.id,
+            name: p.torneio?.titulo || "Torneio COMAES",
+            date: p.entrou_em || p.torneio?.inicia_em || new Date().toISOString(),
+            position: p.posicao || "-",
+            points: Number(p.pontuacao),
+            category: p.disciplina_competida || "Geral"
+          })).sort((a, b) => new Date(b.date) - new Date(a.date));
+          
+          setTournamentHistory(history);
+
+          // Participação por Área (Pie Chart)
+          const areas = {};
+          participacoes.forEach(p => {
+            const area = p.disciplina_competida || "Geral";
+            areas[area] = (areas[area] || 0) + 1;
+          });
+          
+          const areaData = Object.keys(areas).map((name, index) => ({
+            name,
+            value: areas[name],
+            color: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'][index % 4]
+          }));
+          setAreaParticipation(areaData);
+
+          // Pontos por Categoria (Bar Chart)
+          const pointsCat = {};
+          participacoes.forEach(p => {
+            const area = p.disciplina_competida || "Geral";
+            pointsCat[area] = (pointsCat[area] || 0) + Number(p.pontuacao);
+          });
+          
+          const pointsCatData = Object.keys(pointsCat).map(category => ({
+            category,
+            pontos: pointsCat[category]
+          }));
+          setPointsByCategory(pointsCatData);
+
+          // Distribuição de Prêmios
+          const prizes = [
+            { position: '1º Lugar', quantidade: participacoes.filter(p => p.posicao === 1).length, color: '#FFD700' },
+            { position: '2º Lugar', quantidade: participacoes.filter(p => p.posicao === 2).length, color: '#C0C0C0' },
+            { position: '3º Lugar', quantidade: participacoes.filter(p => p.posicao === 3).length, color: '#CD7F32' },
+          ];
+          setPrizesDistribution(prizes);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados do dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user?.id]);
 
   // Cards de estatísticas
   const statCards = [
@@ -104,15 +184,15 @@ function Dashboard() {
       value: userData.tournamentsPlayed,
       icon: <Trophy className="h-6 w-6" />,
       color: "bg-blue-500",
-      change: "+3 este mês"
+      change: "Atualizado"
     },
     {
       id: 2,
       title: "Posição Atual",
-      value: `#${userData.currentRank}`,
+      value: userData.currentRank > 0 ? `#${userData.currentRank}` : "-",
       icon: <TrendingUp className="h-6 w-6" />,
       color: "bg-green-500",
-      change: `Subiu ${userData.previousRank - userData.currentRank} posições`
+      change: `Ranking global`
     },
     {
       id: 3,
@@ -120,7 +200,7 @@ function Dashboard() {
       value: userData.totalPoints.toLocaleString(),
       icon: <Star className="h-6 w-6" />,
       color: "bg-purple-500",
-      change: "+450 este mês"
+      change: "Carreira"
     },
     {
       id: 4,
@@ -128,37 +208,21 @@ function Dashboard() {
       value: userData.prizesWon,
       icon: <Award className="h-6 w-6" />,
       color: "bg-yellow-500",
-      change: "2 de ouro"
+      change: "Top 3 no pódio"
     }
   ];
 
-  // Recent tournaments
-  const recentTournaments = [
-    {
-      id: 1,
-      name: "Math Challenge 2024",
-      date: "2024-03-20",
-      category: "Matemática",
-      position: 1,
-      points: 300
-    },
-    {
-      id: 2,
-      name: "Python Masters",
-      date: "2024-03-18",
-      category: "Programação",
-      position: 2,
-      points: 250
-    },
-    {
-      id: 3,
-      name: "English Debate",
-      date: "2024-03-15",
-      category: "Inglês",
-      position: 3,
-      points: 200
-    }
-  ];
+  // Se estiver carregando, mostrar spinner
+  if (loading && user) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <span className="ml-4 text-gray-600">Carregando seu dashboard...</span>
+        </div>
+      </Layout>
+    );
+  }
 
   // Se usuário não está autenticado, mostrar tela de login
   if (!user) {
@@ -412,46 +476,60 @@ function Dashboard() {
             <Clock className="h-6 w-6 text-gray-500" />
           </div>
           <div className="space-y-4">
-            {recentTournaments.map((tournament) => (
-              <div 
-                key={tournament.id}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className={`p-2 rounded-lg ${
-                    tournament.category === 'Matemática' ? 'bg-blue-100 text-blue-600' :
-                    tournament.category === 'Programação' ? 'bg-green-100 text-green-600' :
-                    'bg-yellow-100 text-yellow-600'
-                  }`}>
-                    {tournament.category === 'Matemática' ? 'M' :
-                     tournament.category === 'Programação' ? 'P' : 'I'}
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900">{tournament.name}</h4>
-                    <p className="text-sm text-gray-600">
-                      {new Date(tournament.date).toLocaleDateString('pt-BR')}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-6">
-                  <div className="text-center">
-                    <div className={`px-3 py-1 rounded-full ${
-                      tournament.position === 1 ? 'bg-yellow-100 text-yellow-800' :
-                      tournament.position === 2 ? 'bg-gray-100 text-gray-800' :
-                      'bg-orange-100 text-orange-800'
+            {tournamentHistory.slice(0, 5).length > 0 ? (
+              tournamentHistory.slice(0, 5).map((tournament) => (
+                <div 
+                  key={tournament.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className={`p-2 rounded-lg ${
+                      tournament.category === 'Matemática' ? 'bg-blue-100 text-blue-600' :
+                      tournament.category === 'Programação' ? 'bg-green-100 text-green-600' :
+                      'bg-yellow-100 text-yellow-600'
                     }`}>
-                      <span className="font-bold">{tournament.position}º</span>
+                      {tournament.category === 'Matemática' ? 'M' :
+                       tournament.category === 'Programação' ? 'P' : 'I'}
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">Posição</p>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">{tournament.name}</h4>
+                      <p className="text-sm text-gray-600">
+                        {new Date(tournament.date).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <div className="font-bold text-gray-900">{tournament.points} pts</div>
-                    <p className="text-xs text-gray-600">Pontos</p>
+                  <div className="flex items-center space-x-6">
+                    <div className="text-center">
+                      <div className={`px-3 py-1 rounded-full ${
+                        tournament.position === 1 ? 'bg-yellow-100 text-yellow-800' :
+                        tournament.position === 2 ? 'bg-gray-100 text-gray-800' :
+                        tournament.position === 3 ? 'bg-orange-100 text-orange-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        <span className="font-bold">{tournament.position}º</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">Posição</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-bold text-gray-900">{tournament.points} pts</div>
+                      <p className="text-xs text-gray-600">Pontos</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-gray-400" />
                   </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <Trophy className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p>Você ainda não participou de nenhum torneio.</p>
+                <button 
+                  onClick={() => navigate('/torneios')}
+                  className="mt-4 text-blue-600 font-medium hover:underline"
+                >
+                  Ver torneios disponíveis
+                </button>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -552,7 +630,7 @@ function Dashboard() {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-yellow-600">
-              {rankingHistory[rankingHistory.length - 1].rank - userData.currentRank}
+              {rankingHistory.length > 0 ? (rankingHistory[rankingHistory.length - 1].rank - userData.currentRank) : 0}
             </div>
             <p className="text-gray-600">Posições Subidas</p>
           </div>

@@ -14,15 +14,12 @@ import adminRoutes from './routes/adminRoutes.js';
 import Usuario from "./models/User.js";
 import aiEvaluator from './utils/aiEvaluator.js';
 import Funcao from "./models/Funcao.js";
-import Sessao from "./models/Sessao.js";
 import RedefinicaoSenha from "./models/RedefinicaoSenha.js";
 import ConfiguracaoUsuario from "./models/ConfiguracaoUsuario.js";
 import Torneio from "./models/Torneio.js";
 import ParticipanteTorneio from "./models/ParticipanteTorneio.js";
 import Noticia from "./models/Noticia.js";
-import Comentario from "./models/Comentario.js";
-import Midia from "./models/Midia.js";
-import Teste from "./models/Teste.js";
+import Pergunta from "./models/Pergunta.js";
 import QuestaoMatematica from "./models/QuestaoMatematica.js";
 import QuestaoProgramacao from "./models/QuestaoProgramacao.js";
 import QuestaoIngles from "./models/QuestaoIngles.js";
@@ -31,7 +28,6 @@ import TicketSuporte from "./models/TicketSuporte.js";
 import Notificacao from "./models/Notificacao.js";
 import Conquista from "./models/Conquista.js";
 import ConquistaUsuario from "./models/ConquistaUsuario.js";
-import LogAtividade from "./models/LogAtividade.js";
 
 dotenv.config();
 
@@ -65,10 +61,6 @@ const setupAssociations = () => {
   Funcao.hasMany(Usuario, { foreignKey: 'funcao_id', as: 'usuarios' });
   Usuario.belongsTo(Funcao, { foreignKey: 'funcao_id', as: 'funcao' });
 
-  // Usuario <-> Sessao
-  Usuario.hasMany(Sessao, { foreignKey: 'usuario_id', as: 'sessoes' });
-  Sessao.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
-
   // Usuario <-> RedefinicaoSenha
   Usuario.hasMany(RedefinicaoSenha, { foreignKey: 'usuario_id', as: 'redefinicoes' });
   RedefinicaoSenha.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
@@ -93,18 +85,6 @@ const setupAssociations = () => {
   Usuario.hasMany(Noticia, { foreignKey: 'autor_id', as: 'noticias' });
   Noticia.belongsTo(Usuario, { foreignKey: 'autor_id', as: 'autor' });
 
-  // Comentario <-> Usuario
-  Usuario.hasMany(Comentario, { foreignKey: 'usuario_id', as: 'comentarios' });
-  Comentario.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
-
-  // Comentario hierárquico (self-join)
-  Comentario.hasMany(Comentario, { foreignKey: 'comentario_pai_id', as: 'respostas' });
-  Comentario.belongsTo(Comentario, { foreignKey: 'comentario_pai_id', as: 'pai' });
-
-  // Teste <-> Usuario (criador)
-  Usuario.hasMany(Teste, { foreignKey: 'criado_por', as: 'testesCriados' });
-  Teste.belongsTo(Usuario, { foreignKey: 'criado_por', as: 'criador' });
-
   // Torneio <-> QuestãoMatematica
   Torneio.hasMany(QuestaoMatematica, { foreignKey: 'torneio_id', as: 'questoesMat' });
   QuestaoMatematica.belongsTo(Torneio, { foreignKey: 'torneio_id', as: 'torneio' });
@@ -120,10 +100,6 @@ const setupAssociations = () => {
   // TentativaTeste <-> Usuario
   Usuario.hasMany(TentativaTeste, { foreignKey: 'usuario_id', as: 'tentativas' });
   TentativaTeste.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
-
-  // TentativaTeste <-> Teste
-  Teste.hasMany(TentativaTeste, { foreignKey: 'teste_id', as: 'tentativas' });
-  TentativaTeste.belongsTo(Teste, { foreignKey: 'teste_id', as: 'teste' });
 
   // TicketSuporte <-> Usuario (autor)
   Usuario.hasMany(TicketSuporte, { foreignKey: 'usuario_id', as: 'ticketsEnviados' });
@@ -148,10 +124,6 @@ const setupAssociations = () => {
   // ConquistaUsuario <-> Usuario (concedido_por)
   Usuario.hasMany(ConquistaUsuario, { foreignKey: 'concedido_por', as: 'conquistasConcedidas' });
   ConquistaUsuario.belongsTo(Usuario, { foreignKey: 'concedido_por', as: 'concedidoPor', onDelete: 'SET NULL' });
-
-  // LogAtividade <-> Usuario
-  Usuario.hasMany(LogAtividade, { foreignKey: 'usuario_id', as: 'logs' });
-  LogAtividade.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario', onDelete: 'SET NULL' });
 };
 
 // ===== ROTAS PÚBLICAS =====
@@ -279,6 +251,68 @@ app.post('/usuarios/:id/avatar', upload.single('avatar'), async (req, res) => {
   }
 });
 
+app.put('/usuarios/:id', async (req, res) => {
+  try {
+    const userId = String(req.params.id);
+    const auth = req.headers.authorization || '';
+    const token = auth.split(' ')[1];
+
+    if (!token) return res.status(401).json({ success: false, error: 'Token ausente.' });
+
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    } catch (err) {
+      return res.status(401).json({ success: false, error: 'Token inválido.' });
+    }
+
+    if (String(payload.id) !== userId) return res.status(403).json({ success: false, error: 'Permissão negada.' });
+
+    const { nome, email, biografia } = req.body;
+    const updates = {};
+
+    if (typeof nome === 'string') {
+      const trimmed = nome.trim();
+      if (!trimmed) return res.status(400).json({ success: false, error: 'Nome inválido.' });
+      updates.nome = trimmed;
+    }
+
+    if (typeof email === 'string') {
+      const trimmed = email.trim();
+      if (!trimmed) return res.status(400).json({ success: false, error: 'Email inválido.' });
+      updates.email = trimmed;
+    }
+
+    if (biografia !== undefined) {
+      updates.biografia = biografia;
+    }
+
+    if (!Object.keys(updates).length) {
+      return res.status(400).json({ success: false, error: 'Nenhum dado para atualizar.' });
+    }
+
+    if (updates.email) {
+      const numericId = Number(userId);
+      const conflict = await Usuario.findOne({
+        where: { email: updates.email, id: { [Op.ne]: numericId } }
+      });
+      if (conflict) {
+        return res.status(409).json({ success: false, error: 'Email já em uso.' });
+      }
+    }
+
+    await Usuario.update(updates, { where: { id: userId } });
+
+    const updated = await Usuario.findByPk(userId);
+    if (!updated) return res.status(404).json({ success: false, error: 'Usuário não encontrado.' });
+    const { password, ...safe } = updated.get({ plain: true });
+
+    res.json({ success: true, data: safe });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ===== CRUD USUARIOS =====
 app.get('/usuarios', async (req, res) => {
   try {
@@ -305,10 +339,48 @@ app.get('/usuarios/:id/notificacoes', async (req, res) => {
     const usuarioId = req.params.id;
     const notificacoes = await Notificacao.findAll({
       where: { usuario_id: usuarioId },
-      order: [['createdAt', 'DESC']],
-      limit: 20
+      order: [['criado_em', 'DESC']],
+      limit: 50
     });
     res.json({ success: true, data: notificacoes });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.patch('/notificacoes/:id/lido', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Notificacao.update(
+      { lido: true, lido_em: new Date() },
+      { where: { id } }
+    );
+    res.json({ success: true, message: 'Notificação marcada como lida.' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.patch('/usuarios/:id/notificacoes/lido-todas', async (req, res) => {
+  try {
+    const usuarioId = req.params.id;
+    await Notificacao.update(
+      { lido: true, lido_em: new Date() },
+      { where: { usuario_id: usuarioId, lido: false } }
+    );
+    res.json({ success: true, message: 'Todas as notificações marcadas como lidas.' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/usuarios/:id/notificacoes/nao-lidas/count', async (req, res) => {
+  try {
+    const usuarioId = req.params.id;
+    const count = await Notificacao.count({
+      where: { usuario_id: usuarioId, lido: false }
+    });
+    res.json({ success: true, count });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -322,6 +394,54 @@ app.get('/usuarios/:id/configuracao', async (req, res) => {
       where: { usuario_id: usuarioId }
     });
     res.json({ success: true, data: configuracao });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Participações do usuário em torneios
+app.get('/usuarios/:id/participacoes', async (req, res) => {
+  try {
+    const usuarioId = req.params.id;
+    const participacoes = await ParticipanteTorneio.findAll({
+      where: { usuario_id: usuarioId },
+      include: [{
+        model: Torneio,
+        as: 'torneio',
+        attributes: ['id', 'titulo', 'descricao', 'inicia_em', 'termina_em', 'status']
+      }]
+    });
+    res.json({ success: true, data: participacoes });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Ranking global de um usuário
+app.get('/usuarios/:id/ranking-global', async (req, res) => {
+  try {
+    const usuarioId = req.params.id;
+    
+    // Obter todos os usuários com suas pontuações totais
+    const ranking = await ParticipanteTorneio.findAll({
+      attributes: [
+        'usuario_id',
+        [sequelize.fn('SUM', sequelize.col('pontuacao')), 'total_pontos']
+      ],
+      group: ['usuario_id'],
+      order: [[sequelize.literal('total_pontos'), 'DESC']]
+    });
+    
+    const posicao = ranking.findIndex(r => r.usuario_id === Number(usuarioId)) + 1;
+    const totalUsuarios = ranking.length;
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        posicao: posicao > 0 ? posicao : totalUsuarios + 1,
+        totalUsuarios 
+      } 
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -575,31 +695,11 @@ app.post('/torneios/:id/submit', async (req, res) => {
     }
 
     // armazenar tentativa (registro simples)
-    await TentativaTeste.create({ usuario_id, teste_id: null, respostas, pontuacao: totalScore, status: 'concluida', concluido_em: new Date() });
+    await TentativaTeste.create({ usuario_id, respostas, pontuacao: totalScore, status: 'concluida', concluido_em: new Date() });
 
     res.json({ success: true, message: 'Respostas avaliadas', pontuacao: totalScore });
   } catch (error) {
     console.error('Erro submit torneio:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== CRUD TESTES =====
-app.get('/testes', async (req, res) => {
-  try {
-    const testes = await Teste.findAll({ include: ['criador', 'perguntas'] });
-    res.json({ success: true, data: testes });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.get('/testes/:id', async (req, res) => {
-  try {
-    const teste = await Teste.findByPk(req.params.id, { include: ['criador', 'perguntas'] });
-    if (!teste) return res.status(404).json({ success: false, error: 'Teste não encontrado.' });
-    res.json({ success: true, data: teste });
-  } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -621,8 +721,7 @@ app.get('/noticias/:id', async (req, res) => {
   try {
     const noticia = await Noticia.findByPk(req.params.id, {
       include: [
-        { model: Usuario, as: 'autor', attributes: ['id', 'nome', 'imagem'] },
-        { model: Comentario, as: 'comentarios', include: [{ model: Usuario, as: 'usuario', attributes: ['id', 'nome', 'imagem'] }] }
+        { model: Usuario, as: 'autor', attributes: ['id', 'nome', 'imagem'] }
       ]
     });
     if (!noticia) return res.status(404).json({ success: false, error: 'Notícia não encontrada.' });
@@ -632,16 +731,15 @@ app.get('/noticias/:id', async (req, res) => {
   }
 });
 
-app.post('/testes', async (req, res) => {
+// ===== PERGUNTAS =====
+app.get('/perguntas/:tipo', async (req, res) => {
   try {
-    const { titulo, assunto, nivel, criado_por } = req.body;
-
-    if (!titulo || !assunto || !criado_por) {
-      return res.status(400).json({ success: false, error: 'Campos obrigatórios em falta.' });
-    }
-
-    const novo = await Teste.create({ titulo, assunto, nivel, criado_por });
-    res.status(201).json({ success: true, data: novo });
+    const { tipo } = req.params;
+    const perguntas = await Pergunta.findAll({
+      where: { tipo },
+      order: [['ordem_indice', 'ASC']]
+    });
+    res.json({ success: true, data: perguntas });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -674,7 +772,6 @@ async function startServer() {
       console.log(`📡 Health: http://localhost:${port}/health`);
       console.log(`📋 Usuários: http://localhost:${port}/usuarios`);
       console.log(`🏆 Torneios: http://localhost:${port}/torneios`);
-      console.log(`📚 Testes: http://localhost:${port}/testes`);
       console.log(`🔔 Notificações: http://localhost:${port}/usuarios/:id/notificacoes`);
       console.log(`📰 Notícias: http://localhost:${port}/noticias`);
     });

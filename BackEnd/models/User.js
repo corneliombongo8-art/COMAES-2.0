@@ -44,6 +44,11 @@ const Usuario = sequelize.define('Usuario', {
     type: DataTypes.STRING(1024),
     allowNull: true,
   },
+  biografia: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    defaultValue: ''
+  },
   isAdmin: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,

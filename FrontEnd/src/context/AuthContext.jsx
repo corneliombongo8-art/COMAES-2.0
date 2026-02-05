@@ -25,9 +25,10 @@ export const AuthProvider = ({ children }) => {
     const name = raw.nome || raw.name || raw.fullName || raw.username || '';
     const email = raw.email || '';
     const phone = raw.telefone || raw.phone || '';
+    const biography = raw.biografia || raw.bio || '';
     const avatar = raw.imagem || raw.avatar || (name ? `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=blue&color=white` : null);
     const username = raw.username || (email ? email.split('@')[0] : name);
-    return { ...raw, id, name, fullName: name, email, phone, avatar, username };
+    return { ...raw, id, name, fullName: name, email, phone, avatar, username, biografia: biography, bio: biography };
   };
 
   // login(userObj, token?) - aceita usuário bruto do backend e token opcional

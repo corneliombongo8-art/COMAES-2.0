@@ -7,11 +7,6 @@ const Pergunta = sequelize.define('Pergunta', {
     primaryKey: true,
     autoIncrement: true,
   },
-  teste_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: { model: 'testes', key: 'id' },
-  },
   ordem_indice: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -24,13 +19,25 @@ const Pergunta = sequelize.define('Pergunta', {
     type: DataTypes.TEXT,
     allowNull: false,
   },
-  opcoes: {
-    type: DataTypes.JSON,
+  opcao_a: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  opcao_b: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  opcao_c: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  opcao_d: {
+    type: DataTypes.STRING(255),
     allowNull: true,
   },
   resposta_correta: {
-    type: DataTypes.JSON,
-    allowNull: true,
+     type: DataTypes.ENUM('a', 'b', 'c', 'd'),
+    allowNull: false,
   },
   pontos: {
     type: DataTypes.INTEGER,
@@ -47,9 +54,6 @@ const Pergunta = sequelize.define('Pergunta', {
 }, {
   tableName: 'perguntas',
   timestamps: false,
-  indexes: [
-    { fields: ['teste_id'] },
-  ],
 });
 
 export default Pergunta;

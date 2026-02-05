@@ -33,103 +33,94 @@ function Teste() {
     }
   }, [user, navigate]);
 
-  // Dados dos quizzes por área
-  const quizzes = {
+  const [loading, setLoading] = useState(false);
+  const [dynamicQuestions, setDynamicQuestions] = useState({});
+
+  // Dados dos quizzes por área (metadados estáticos, questões dinâmicas)
+  const [quizzes, setQuizzes] = useState({
     matematica: {
       title: "Matemática",
       icon: "🧮",
       color: "#3B82F6",
       gradient: "from-blue-500 to-blue-600",
-      questions: [
-        {
-          question: "Qual é a derivada de f(x) = 3x² + 2x + 1?",
-          options: ["6x + 2", "3x + 2", "6x² + 2", "3x² + 2"],
-          correct: 0
-        },
-        {
-          question: "Qual é o valor de ∫(0 to 1) x² dx?",
-          options: ["1/2", "1/3", "1/4", "1/5"],
-          correct: 1
-        },
-        {
-          question: "Resolva: lim(x→0) (sin x)/x",
-          options: ["0", "1", "∞", "Indefinido"],
-          correct: 1
-        },
-        {
-          question: "Qual é a matriz inversa de [[2,1],[1,1]]?",
-          options: ["[[1,-1],[-1,2]]", "[[1,-1],[1,2]]", "[[1,1],[-1,2]]", "[[1,-1],[-1,-2]]"],
-          correct: 0
-        }
-      ]
+      questions: []
     },
     programacao: {
       title: "Programação",
       icon: "💻",
       color: "#10B981",
       gradient: "from-emerald-500 to-emerald-600",
-      questions: [
-        {
-          question: "O que é um algoritmo?",
-          options: [
-            "Uma linguagem de programação",
-            "Um conjunto de instruções para resolver um problema",
-            "Um tipo de variável",
-            "Um sistema operacional"
-          ],
-          correct: 1
-        },
-        {
-          question: "Qual estrutura de dados segue o princípio LIFO?",
-          options: ["Fila", "Lista", "Pilha", "Árvore"],
-          correct: 2
-        },
-        {
-          question: "Em OOP, o que é herança?",
-          options: [
-            "Criar múltiplas instâncias",
-            "Uma classe derivar propriedades de outra",
-            "Esconder dados",
-            "Polimorfismo de funções"
-          ],
-          correct: 1
-        },
-        {
-          question: "Complexidade do QuickSort no pior caso:",
-          options: ["O(n)", "O(n log n)", "O(n²)", "O(log n)"],
-          correct: 2
-        }
-      ]
+      questions: []
     },
     ingles: {
       title: "Inglês",
       icon: "🔤",
       color: "#8B5CF6",
       gradient: "from-violet-500 to-violet-600",
-      questions: [
-        {
-          question: "Choose the correct past perfect: 'She _____ (finish) her work before they arrived.'",
-          options: ["finishes", "finished", "had finished", "has finished"],
-          correct: 2
-        },
-        {
-          question: "Identify the phrasal verb: 'I need to look up this word in the dictionary.'",
-          options: ["need to", "look up", "in the", "this word"],
-          correct: 1
-        },
-        {
-          question: "Which is NOT a synonym for 'intelligent'?",
-          options: ["clever", "bright", "dull", "smart"],
-          correct: 2
-        },
-        {
-          question: "Complete: 'If I _____ you, I would study more.'",
-          options: ["am", "was", "were", "be"],
-          correct: 2
-        }
-      ]
+      questions: []
     }
-  };
+  });
+
+  // Carregar questões do backend ao selecionar área
+  useEffect(() => {
+    const fetchQuestions = async (area) => {
+      try {
+        const response = await fetch(`http://localhost:3000/perguntas/${area}`);
+        const result = await response.json();
+        
+        if (result.success) {
+          const mappedQuestions = result.data.map(q => {
+            const options = [q.opcao_a, q.opcao_b, q.opcao_c, q.opcao_d].filter(opt => opt !== null);
+            
+            let correctIndex = 0;
+            const rc = q.resposta_correta;
+            
+            if (rc === q.opcao_a) correctIndex = 0;
+            else if (rc === q.opcao_b) correctIndex = 1;
+            else if (rc === q.opcao_c) correctIndex = 2;
+            else if (rc === q.opcao_d) correctIndex = 3;
+            else if (rc === 'A' || rc === 'a') correctIndex = 0;
+            else if (rc === 'B' || rc === 'b') correctIndex = 1;
+            else if (rc === 'C' || rc === 'c') correctIndex = 2;
+            else if (rc === 'D' || rc === 'd') correctIndex = 3;
+            
+            return {
+              id: q.id,
+              question: q.texto_pergunta,
+              options: options,
+              correct: correctIndex,
+              correctValue: rc
+            };
+          });
+
+          setQuizzes(prev => ({
+            ...prev,
+            [area]: {
+              ...prev[area],
+              questions: mappedQuestions
+            }
+          }));
+        }
+      } catch (error) {
+        console.error(`Erro ao carregar questões de ${area}:`, error);
+      }
+    };
+
+    // Pré-carregar todas as áreas para mostrar contagem
+    Object.keys(quizzes).forEach(area => {
+      fetchQuestions(area);
+    });
+  }, []);
+
+  // Recarregar questões se necessário ao selecionar área (opcional se já pré-carregado)
+  useEffect(() => {
+    if (selectedArea && quizzes[selectedArea].questions.length === 0) {
+      // Forçar carregamento se ainda não tiver
+      setLoading(true);
+      const timer = setTimeout(() => setLoading(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedArea]);
 
   useEffect(() => {
     let timer;
@@ -338,7 +329,7 @@ function Teste() {
                     <div className="text-4xl mb-4 text-center">{area.icon}</div>
                     <h3 className="text-xl font-bold text-gray-800 text-center mb-2">{area.title}</h3>
                     <p className="text-gray-600 text-sm text-center mb-4">
-                      {area.questions.length} questões • 30s por questão
+                      {area.questions.length > 0 ? `${area.questions.length} questões` : 'Carregando questões...'} • 30s por questão
                     </p>
                     <button className={`w-full py-2.5 px-5 bg-gradient-to-r ${area.gradient} text-white font-semibold rounded-lg hover:opacity-90 transition-all duration-300 flex items-center justify-center gap-1.5 text-sm`}>
                       Iniciar Teste
@@ -374,6 +365,26 @@ function Teste() {
   }
 
   const currentQuiz = quizzes[selectedArea];
+  
+  if (loading || !currentQuiz || currentQuiz.questions.length === 0) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Carregando questões do teste...</p>
+            <button 
+              onClick={handleBackToSelection}
+              className="mt-4 text-blue-600 hover:underline"
+            >
+              Voltar para seleção
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   const currentQ = currentQuiz.questions[currentQuestion];
   const totalQuestions = currentQuiz.questions.length;
   const progress = ((currentQuestion + 1) / totalQuestions) * 100;

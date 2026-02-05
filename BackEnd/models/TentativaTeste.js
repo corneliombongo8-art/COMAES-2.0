@@ -12,11 +12,6 @@ const TentativaTeste = sequelize.define('TentativaTeste', {
     allowNull: false,
     references: { model: 'usuarios', key: 'id' },
   },
-  teste_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: { model: 'testes', key: 'id' },
-  },
   iniciado_em: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
@@ -45,7 +40,6 @@ const TentativaTeste = sequelize.define('TentativaTeste', {
   tableName: 'tentativas_teste',
   timestamps: false,
   indexes: [
-    { fields: ['usuario_id', 'teste_id'] },
     { fields: ['usuario_id'] },
   ],
 });

@@ -189,107 +189,69 @@ export default function News() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [categories] = useState([
-    { id: 'all', label: 'Todas', count: 24 },
-    { id: 'novidade', label: 'Novidades', count: 8 },
-    { id: 'atualização', label: 'Atualizações', count: 6 },
-    { id: 'evento', label: 'Eventos', count: 5 },
-    { id: 'dica', label: 'Dicas', count: 5 }
+  const [categories, setCategories] = useState([
+    { id: 'all', label: 'Todas', count: 0 },
+    { id: 'novidade', label: 'Novidades', count: 0 },
+    { id: 'atualização', label: 'Atualizações', count: 0 },
+    { id: 'evento', label: 'Eventos', count: 0 },
+    { id: 'dica', label: 'Dicas', count: 0 }
   ]);
 
   // Carregar notícias
   useEffect(() => {
     const loadNews = async () => {
       setLoading(true);
-      
-      // Dados mockados das notícias
-      const mockNews = [
-        {
-          id: 1,
-          category: 'novidade',
-          title: 'Nova Área: Inteligência Artificial',
-          excerpt: 'Introduzimos uma nova área de conhecimento focada em IA e Machine Learning com testes desde iniciante até avançado.',
-          author: 'Equipe KnowTest',
-          date: '15 Jan 2024',
-          readTime: '5 min',
-          views: '1.2k',
-          isBookmarked: false,
-          imageUrl: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800',
-          tags: ['IA', 'Machine Learning', 'Nova Área', 'Tecnologia']
-        },
-        {
-          id: 2,
-          category: 'atualização',
-          title: 'Sistema de Ranking Aprimorado',
-          excerpt: 'Melhoramos nosso algoritmo de ranking com mais fatores e maior justiça nas competições.',
-          author: 'Carlos Lima',
-          date: '12 Jan 2024',
-          readTime: '3 min',
-          views: '845',
-          isBookmarked: true,
-          imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800',
-          tags: ['Ranking', 'Atualização', 'Algoritmo', 'Competição']
-        },
-        {
-          id: 3,
-          category: 'evento',
-          title: 'Maratona de Programação 2024',
-          excerpt: 'Participe da nossa primeira maratona de programação com prêmios incríveis!',
-          author: 'Maria Santos',
-          date: '10 Jan 2024',
-          readTime: '4 min',
-          views: '2.1k',
-          isBookmarked: false,
-          imageUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800',
-          tags: ['Evento', 'Programação', 'Competição', 'Prêmios']
-        },
-        {
-          id: 4,
-          category: 'dica',
-          title: 'Como Melhorar Sua Pontuação',
-          excerpt: 'Dicas práticas para aumentar sua performance nos testes e subir no ranking.',
-          author: 'João Silva',
-          date: '08 Jan 2024',
-          readTime: '6 min',
-          views: '3.4k',
-          isBookmarked: false,
-          imageUrl: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=800',
-          tags: ['Dicas', 'Performance', 'Estudo', 'Progresso']
-        },
-        {
-          id: 5,
-          category: 'novidade',
-          title: 'App Mobile Lançado!',
-          excerpt: 'Agora você pode estudar em qualquer lugar com nosso aplicativo móvel.',
-          author: 'Equipe KnowTest',
-          date: '05 Jan 2024',
-          readTime: '2 min',
-          views: '4.2k',
-          isBookmarked: true,
-          imageUrl: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=800',
-          tags: ['Mobile', 'App', 'Lançamento', 'Novidade']
-        },
-        {
-          id: 6,
-          category: 'evento',
-          title: 'Webinar: Dicas para Estudantes',
-          excerpt: 'Participe do nosso webinar gratuito com especialistas em aprendizagem.',
-          author: 'Ana Costa',
-          date: '03 Jan 2024',
-          readTime: '3 min',
-          views: '1.8k',
-          isBookmarked: false,
-          imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800',
-          tags: ['Webinar', 'Estudo', 'Gratuito', 'Especialistas']
-        }
-      ];
+      try {
+        const response = await fetch('http://localhost:3000/noticias');
+        const result = await response.json();
+        
+        if (result.success) {
+          const transformedNews = result.data.map(item => {
+            // Determinar categoria com base nas tags ou padrão
+            let category = 'novidade';
+            if (item.tags) {
+              const tagsArr = Array.isArray(item.tags) ? item.tags : JSON.parse(item.tags || '[]');
+              if (tagsArr.some(t => t.toLowerCase().includes('evento'))) category = 'evento';
+              else if (tagsArr.some(t => t.toLowerCase().includes('atualização') || t.toLowerCase().includes('update'))) category = 'atualização';
+              else if (tagsArr.some(t => t.toLowerCase().includes('dica'))) category = 'dica';
+            }
 
-      // Simular carregamento
-      setTimeout(() => {
-        setNews(mockNews);
-        setBookmarked([2, 5]); // IDs das notícias bookmarkadas
+            return {
+              id: item.id,
+              category,
+              title: item.titulo,
+              excerpt: item.resumo || item.conteudo.substring(0, 150) + '...',
+              author: item.usuario?.nome || 'Equipe COMAES',
+              date: item.publicado_em ? new Date(item.publicado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recentemente',
+              readTime: Math.ceil(item.conteudo.split(' ').length / 200) + ' min',
+              views: Math.floor(Math.random() * 1000) + 100, // Simulado se não houver no banco
+              isBookmarked: false,
+              imageUrl: item.url_capa || 'https://images.unsplash.com/photo-1504711432869-5d39a110fdd7?auto=format&fit=crop&w=800',
+              tags: Array.isArray(item.tags) ? item.tags : JSON.parse(item.tags || '[]')
+            };
+          });
+
+          setNews(transformedNews);
+          
+          // Atualizar contadores de categorias
+          const counts = {
+            all: transformedNews.length,
+            novidade: transformedNews.filter(n => n.category === 'novidade').length,
+            atualização: transformedNews.filter(n => n.category === 'atualização').length,
+            evento: transformedNews.filter(n => n.category === 'evento').length,
+            dica: transformedNews.filter(n => n.category === 'dica').length,
+          };
+
+          setCategories(prev => prev.map(cat => ({
+            ...cat,
+            count: counts[cat.id] || 0
+          })));
+        }
+      } catch (error) {
+        console.error("Erro ao carregar notícias:", error);
+      } finally {
         setLoading(false);
-      }, 1000);
+      }
     };
 
     loadNews();
@@ -319,48 +281,25 @@ export default function News() {
     }
   };
 
-  // Notícias em destaque
-  const featuredNews = [
-    {
-      id: 7,
-      type: 'announcement',
-      title: 'KnowTest atinge 100k usuários!',
-      description: 'Celebramos esta conquista incrível com novos recursos e melhorias para todos.',
-      ctaText: 'Ver celebração'
-    },
-    {
-      id: 8,
-      type: 'event',
-      title: 'Competição de Matemática',
-      description: 'Teste suas habilidades matemáticas e ganhe prêmios exclusivos.',
-      ctaText: 'Inscrever-se'
-    }
-  ];
+  // Notícias em destaque dinâmicas
+  const featuredNews = news
+    .filter(n => n.tags.some(t => t.toLowerCase().includes('destaque') || t.toLowerCase().includes('featured')))
+    .slice(0, 2);
+  
+  // Fallback se não houver marcadas como destaque
+  const displayFeatured = featuredNews.length > 0 ? featuredNews : news.slice(0, 2);
 
-  // Atualizações rápidas
-  const quickUpdates = [
-    {
-      icon: Zap,
-      title: 'Sistema mais rápido',
-      description: 'Otimizamos o carregamento dos testes em 40%',
-      date: 'Hoje',
-      color: 'green'
-    },
-    {
-      icon: TrendingUp,
-      title: 'Novas estatísticas',
-      description: 'Agora você pode ver gráficos mais detalhados',
-      date: 'Ontem',
-      color: 'blue'
-    },
-    {
-      icon: BookOpen,
-      title: '+50 novos testes',
-      description: 'Adicionamos testes nas áreas de tecnologia',
-      date: '2 dias atrás',
-      color: 'purple'
-    }
-  ];
+  // Atualizações rápidas dinâmicas
+  const quickUpdates = news
+    .filter(n => n.category === 'atualização' || n.category === 'novidade')
+    .slice(0, 3)
+    .map(n => ({
+      icon: n.category === 'atualização' ? TrendingUp : Zap,
+      title: n.title,
+      description: n.excerpt.substring(0, 60) + '...',
+      date: n.date,
+      color: n.category === 'atualização' ? 'blue' : 'green'
+    }));
 
   if (loading) {
     return (
@@ -424,11 +363,19 @@ export default function News() {
         </div>
 
         {/* Destaques */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {featuredNews.map((featured) => (
-            <FeaturedCard key={featured.id} {...featured} />
-          ))}
-        </div>
+        {displayFeatured.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {displayFeatured.map((featured) => (
+              <FeaturedCard 
+                key={featured.id} 
+                title={featured.title}
+                description={featured.excerpt}
+                imageUrl={featured.imageUrl}
+                type={featured.category === 'evento' ? 'event' : 'featured'}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Layout Principal */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
