@@ -10,7 +10,7 @@ const Funcao = sequelize.define('Funcao', {
   nome: {
     type: DataTypes.STRING(100),
     allowNull: false,
-    unique: true,
+    unique: 'funcoes_nome_unique',
   },
   permissoes: {
     type: DataTypes.JSON,

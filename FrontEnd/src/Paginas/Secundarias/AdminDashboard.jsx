@@ -17,7 +17,6 @@ const AdminDashboard = () => {
         { id: 'configuracoes_usuario', label: 'Config. Usuário', icon: '⚙️' },
         { id: 'conquistas_usuario', label: 'Conquistas Usuário', icon: '🎖️' },
         { id: 'notificacoes', label: 'Notificações', icon: '🔔' },
-        { id: 'participantes_torneio', label: 'Participantes', icon: '👥' },
         { id: 'perguntas', label: 'Perguntas', icon: '❓' },
         { id: 'questoes_ingles', label: 'Questões Inglês', icon: '🇬🇧' },
         { id: 'questoes_matematica', label: 'Questões Matemática', icon: '🔢' },

@@ -61,57 +61,6 @@ const torneioService = {
     }
   },
 
-  // Registrar participante no torneio
-  registrarParticipante: async (torneioId, usuarioId, disciplina) => {
-    try {
-      const response = await axios.post(`${API_URL}/torneios/${torneioId}/join`, {
-        usuario_id: usuarioId,
-        disciplina_competida: disciplina
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao registrar participante:', error);
-      
-      // Se erro for 409 (já registrado), tentar obter dados existentes
-      if (error.response && error.response.status === 409) {
-        try {
-          const participanteRes = await axios.get(`${API_URL}/torneios/${torneioId}/usuario/${usuarioId}`);
-          return participanteRes.data;
-        } catch (getError) {
-          throw getError;
-        }
-      }
-      
-      throw error;
-    }
-  },
-
-  // Obter ranking do torneio
-  obterRanking: async (torneioId) => {
-    try {
-      const response = await axios.get(`${API_URL}/torneios/${torneioId}/ranking`);
-      return response.data.data || [];
-    } catch (error) {
-      console.error('Erro ao obter ranking:', error);
-      return [];
-    }
-  },
-
-  // Obter dados do participante (usuário) no torneio
-  obterDadosParticipante: async (torneioId, usuarioId) => {
-    try {
-      const response = await axios.get(`${API_URL}/torneios/${torneioId}/usuario/${usuarioId}`);
-      return response.data.data || null;
-    } catch (error) {
-      // Se não encontrado, retornar null (usuário ainda não participa)
-      if (error.response && error.response.status === 404) {
-        return null;
-      }
-      console.error('Erro ao obter dados do participante:', error);
-      return null;
-    }
-  },
-
   // Calcular tempo restante do torneio
   calcularTempoRestante: (iniciaEm, terminaEm) => {
     const agora = new Date().getTime();
@@ -177,6 +126,61 @@ const torneioService = {
       return response.data;
     } catch (error) {
       console.error('Erro ao submeter resposta:', error);
+      throw error;
+    }
+  },
+
+  // Inscrever no torneio
+  inscreverNoTorneio: async (torneioId, usuarioId, disciplina) => {
+    try {
+      const response = await axios.post(`${API_URL}/torneios/inscrever`, {
+        torneio_id: torneioId,
+        usuario_id: usuarioId,
+        disciplina_competida: disciplina
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao inscrever no torneio:', error);
+      throw error;
+    }
+  },
+
+  // Obter ranking por disciplina
+  obterRanking: async (torneioId, disciplina) => {
+    try {
+      const response = await axios.get(`${API_URL}/torneios/${torneioId}/participantes`, {
+        params: { disciplina }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao obter ranking:', error);
+      return [];
+    }
+  },
+
+  // Obter minha participação
+  obterMinhaParticipacao: async (torneioId, usuarioId, disciplina) => {
+    try {
+      const response = await axios.get(`${API_URL}/torneios/${torneioId}/minha-participacao`, {
+        params: { usuario_id: usuarioId, disciplina }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao obter minha participação:', error);
+      return null;
+    }
+  },
+
+  // Atualizar pontos do participante
+  atualizarPontos: async (participanteId, pontos, descricao) => {
+    try {
+      const response = await axios.patch(`${API_URL}/participantes/${participanteId}/pontos`, {
+        pontos,
+        descricao
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao atualizar pontos:', error);
       throw error;
     }
   }

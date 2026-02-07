@@ -66,23 +66,12 @@ const Torneios = () => {
         setTorneios([torneioAtivo]);
         setSelectedTorneio(torneioAtivo);
 
-        // 3. Buscar ranking do torneio
-        const rankingData = await torneioService.obterRanking(torneioAtivo.id);
+        // 3. Buscar ranking e participação do usuário
+        const rankingData = await torneioService.obterRanking(torneioAtivo.id, activeDiscipline.charAt(0).toUpperCase() + activeDiscipline.slice(1));
         setRanking(rankingData);
 
-        // 4. Buscar dados do usuário neste torneio
-        const userData = await torneioService.obterDadosParticipante(torneioAtivo.id, user.id);
-        
-        if (userData) {
-          setUserStats({
-            pontuacao: userData.pontuacao || 0,
-            posicao: userData.posicao || 0,
-            casos_resolvidos: userData.casos_resolvidos || 0,
-            disciplina_competida: userData.disciplina_competida
-          });
-        } else {
-          setUserStats(null);
-        }
+        const participacao = await torneioService.obterMinhaParticipacao(torneioAtivo.id, user.id, activeDiscipline.charAt(0).toUpperCase() + activeDiscipline.slice(1));
+        setUserStats(participacao);
 
       } catch (error) {
         console.error('Erro ao buscar torneios:', error);
@@ -97,74 +86,8 @@ const Torneios = () => {
     fetchTorneos();
   }, [activeDiscipline, user?.id]);
 
-  const handleJoinTorneio = async () => {
-    if (!selectedTorneio || !user?.id) return;
-    
-    setJoining(true);
-    
-    try {
-      // 3. REGISTRAR PARTICIPANTE NA TABELA participantes_torneio
-      const response = await torneioService.registrarParticipante(
-        selectedTorneio.id,
-        user.id,
-        activeDiscipline.charAt(0).toUpperCase() + activeDiscipline.slice(1)
-      );
-
-      if (response.success) {
-        // Atualizar dados do usuário
-        if (response.data) {
-          setUserStats({
-            pontuacao: response.data.pontuacao || 0,
-            posicao: response.data.posicao || 0,
-            casos_resolvidos: response.data.casos_resolvidos || 0,
-            disciplina_competida: response.data.disciplina_competida
-          });
-        }
-        
-        // Atualizar ranking
-        const rankingData = await torneioService.obterRanking(selectedTorneio.id);
-        setRanking(rankingData);
-        
-        // Mostrar mensagem de sucesso
-        setModalMessage(`Parabéns! Você entrou no torneio de ${activeDiscipline}.`);
-        setModalType('success');
-        setShowModal(true);
-        
-        // Redirecionar para o torneio após 2 segundos
-        setTimeout(() => {
-          const routeMap = {
-            'matemática': '/matematica-original',
-            'inglês': '/ingles-original',
-            'programação': '/programacao-original'
-          };
-          
-          const route = routeMap[activeDiscipline];
-          if (route) {
-            navigate(`${route}/${user.nome || 'usuario'}`);
-          }
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('Erro ao entrar no torneio:', error);
-      
-      if (error.response?.status === 409) {
-        // Usuário já está registrado
-        setModalMessage('Você já está participando deste torneio!');
-        setModalType('info');
-      } else {
-        setModalMessage('Erro ao entrar no torneio. Tente novamente.');
-        setModalType('error');
-      }
-      setShowModal(true);
-    } finally {
-      setJoining(false);
-    }
-  };
-
   const calculateProgress = () => {
-    if (!userStats) return 0;
-    const maxCasos = 100;
-    return (userStats.casos_resolvidos / maxCasos) * 100;
+    return 0;
   };
 
   const getDisciplinaColor = (disciplina) => {
@@ -250,30 +173,29 @@ const Torneios = () => {
                 </div>
                 <div className="bg-gray-900 rounded p-4">
                   <Users className="w-5 h-5 mb-2 text-purple-400" />
-                  <p className="text-sm text-gray-400">Participantes</p>
-                  <p className="font-semibold">{ranking.length}</p>
+                  <p className="text-sm text-gray-400">Torneio</p>
+                  <p className="font-semibold">{selectedTorneio.status}</p>
                 </div>
               </div>
 
-              {!userStats && (
-                <button
-                  onClick={handleJoinTorneio}
-                  disabled={joining}
-                  className={`w-full ${joining ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2`}
-                >
-                  {joining ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Entrando...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4" />
-                      Entrar no Torneio
-                    </>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  const routeMap = {
+                    'matemática': '/matematica-original',
+                    'inglês': '/ingles-original',
+                    'programação': '/programacao-original'
+                  };
+                  
+                  const route = routeMap[activeDiscipline];
+                  if (route) {
+                    navigate(`${route}/${user?.nome || 'usuario'}`);
+                  }
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4" />
+                Iniciar Torneio
+              </button>
             </div>
           ) : (
             <div className="bg-gradient-to-r from-gray-800 to-gray-700 rounded-lg p-6 text-center">
@@ -288,147 +210,65 @@ const Torneios = () => {
             </div>
           )}
 
-          {/* User Progress */}
-          {userStats && selectedTorneio && (
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h4 className="text-xl font-semibold mb-4">Seu Progresso</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="flex flex-col items-center">
-                  <div className="w-24 h-24">
-                    <CircularProgressbar
-                      value={calculateProgress()}
-                      text={`${Math.round(calculateProgress())}%`}
-                      styles={buildStyles({
-                        rotation: 0.25,
-                        strokeLinecap: 'round',
-                        textSize: '16px',
-                        pathTransitionDuration: 0.5,
-                        pathColor: getDisciplinaColor(userStats.disciplina_competida),
-                        textColor: '#fff',
-                        trailColor: '#4b5563',
-                        backgroundColor: '#3b82f6',
-                      })}
-                    />
-                  </div>
-                  <p className="text-gray-400 text-sm mt-2">Progresso</p>
-                </div>
-
-                <div className="flex flex-col justify-center items-center bg-gray-700 rounded p-4">
-                  <p className="text-3xl font-bold text-green-400">{userStats.casos_resolvidos}</p>
-                  <p className="text-gray-400 text-sm mt-1">Casos Resolvidos</p>
-                </div>
-
-                <div className="flex flex-col justify-center items-center bg-gray-700 rounded p-4">
-                  <p className="text-3xl font-bold text-yellow-400">#{userStats.posicao}</p>
-                  <p className="text-gray-400 text-sm mt-1">Posição no Ranking</p>
-                </div>
-              </div>
-              
-              <div className="mt-4 flex justify-center">
-                <button
-                  onClick={() => {
-                    const routeMap = {
-                      'Matemática': '/matematica-original',
-                      'Inglês': '/ingles-original',
-                      'Programação': '/programacao-original'
-                    };
-                    
-                    const route = routeMap[userStats.disciplina_competida];
-                    if (route) {
-                      navigate(`${route}/${user.nome || 'usuario'}`);
-                    }
-                  }}
-                  className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <Play className="w-4 h-4" />
-                  Continuar Torneio
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Ranking Table */}
+          {/* Ranking e Minha Estatística */}
           {selectedTorneio && (
-            <div className="bg-gray-800 rounded-lg overflow-hidden">
-              <div className="p-6 border-b border-gray-700">
-                <h4 className="text-xl font-semibold">Ranking do Torneio</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Meus Dados */}
+              <div className="bg-gray-800 rounded-lg p-6">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Trophy className="text-yellow-400" />
+                  Minha Participação
+                </h3>
+                {userStats ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-gray-900 p-3 rounded">
+                      <span className="text-gray-400 text-sm">Sua Pontuação</span>
+                      <span className="text-2xl font-bold text-blue-400">{userStats.pontuacao || 0} pts</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-gray-900 p-3 rounded">
+                      <span className="text-gray-400 text-sm">Sua Posição</span>
+                      <span className="text-xl font-bold text-yellow-400">#{userStats.posicao || '---'}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-gray-900 p-3 rounded">
+                      <span className="text-gray-400 text-sm">Nível Atual</span>
+                      <span className="capitalize font-semibold text-purple-400">{userStats.nivel_atual || 'Iniciante'}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-gray-900 p-3 rounded">
+                      <span className="text-gray-400 text-sm">Precisão</span>
+                      <span className="font-semibold text-green-400">{userStats.precisao || 0}%</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-gray-900 rounded border border-dashed border-gray-700">
+                    <p className="text-gray-400">Você ainda não está participando deste torneio.</p>
+                    <p className="text-xs text-gray-500 mt-1">Inicie o torneio para começar a competir!</p>
+                  </div>
+                )}
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-700">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Posição</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Usuário</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Casos Resolvidos</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Pontuação</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700">
-                    {ranking.length > 0 ? (
-                      ranking.map((participante, index) => (
-                        <tr 
-                          key={participante.id || index} 
-                          className={`hover:bg-gray-700 transition-colors ${
-                            participante.usuario?.id === user?.id ? 'bg-blue-900/30' : ''
-                          }`}
-                        >
-                          <td className="px-6 py-4">
-                            <div className="flex items-center space-x-2">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                participante.posicao === 1 ? 'bg-yellow-600 text-yellow-100' :
-                                participante.posicao === 2 ? 'bg-gray-400 text-gray-100' :
-                                participante.posicao === 3 ? 'bg-amber-700 text-amber-100' :
-                                'bg-gray-600 text-gray-300'
-                              }`}>
-                                {participante.posicao || index + 1}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center space-x-3">
-                              {participante.usuario?.imagem ? (
-                                <img
-                                  src={participante.usuario.imagem}
-                                  alt={participante.usuario.nome}
-                                  className="w-8 h-8 rounded-full"
-                                />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs">
-                                  {participante.usuario?.nome?.split(' ').map(n => n[0]).join('').substring(0, 2) || 'U'}
-                                </div>
-                              )}
-                              <span className="font-medium">
-                                {participante.usuario?.nome || 'Usuário'}
-                                {participante.usuario?.id === user?.id && ' (Você)'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">{participante.casos_resolvidos || 0}</td>
-                          <td className="px-6 py-4 font-semibold text-yellow-400">
-                            {typeof participante.pontuacao === 'number' ? participante.pontuacao.toFixed(0) : '0'}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              participante.status === 'ativo' 
-                                ? 'bg-green-900 text-green-300' 
-                                : 'bg-gray-700 text-gray-300'
-                            }`}>
-                              {participante.status || 'ativo'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="5" className="px-6 py-8 text-center text-gray-400">
-                          Nenhum participante ainda. Seja o primeiro a entrar!
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+              {/* Ranking Top 5 */}
+              <div className="bg-gray-800 rounded-lg p-6">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Users className="text-blue-400" />
+                  Top Competidores
+                </h3>
+                <div className="space-y-2">
+                  {ranking && ranking.length > 0 ? (
+                    ranking.slice(0, 5).map((item, index) => (
+                      <div key={index} className={`flex items-center justify-between p-3 rounded ${item.usuario_id === user?.id ? 'bg-blue-900/40 border border-blue-700' : 'bg-gray-900'}`}>
+                        <div className="flex items-center gap-3">
+                          <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-gray-700'}`}>
+                            {index + 1}
+                          </span>
+                          <span className="font-medium">{item.usuario?.nome || 'Anônimo'}</span>
+                        </div>
+                        <span className="font-bold text-blue-400">{item.pontuacao} pts</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center py-8 text-gray-500">Nenhum competidor ainda.</p>
+                  )}
+                </div>
               </div>
             </div>
           )}

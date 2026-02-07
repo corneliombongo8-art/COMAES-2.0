@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaCheckCircle, FaCrown, FaMedal, FaStar, FaUsers, FaClock, FaChartLine } from "react-icons/fa";
+import { FaCheckCircle, FaCrown, FaMedal, FaStar, FaUsers, FaClock, FaChartLine, FaSpinner } from "react-icons/fa";
 import { IoClose, IoTrophy, IoSparkles } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Layout from "./Layout";
-import imageTorneio from "../../assets/img.jpg"
+import imageTorneio from "../../assets/img.jpg";
 
 export default function EntrarTorneio() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [disciplinaSelecionada, setDisciplinaSelecionada] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [torneioAtivo, setTorneioAtivo] = useState(null);
+  const [error, setError] = useState(null);
 
   const disciplinas = [
     {
@@ -44,74 +46,125 @@ export default function EntrarTorneio() {
     }
   ];
 
-  // Função para formatar nome para URL (remover acentos, espaços, etc)
+  // Verificar se há torneio ativo quando o componente carrega
+  useEffect(() => {
+    const verificarTorneioAtivo = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/torneios/ativo');
+        const data = await response.json();
+        
+        if (data.ativo && data.torneio) {
+          setTorneioAtivo(data.torneio);
+        } else {
+          setError("Nenhum torneio ativo no momento. Tente novamente mais tarde.");
+        }
+      } catch (err) {
+        console.error('Erro ao verificar torneio ativo:', err);
+        setError("Erro ao conectar com o servidor. Tente novamente.");
+      }
+    };
+
+    verificarTorneioAtivo();
+  }, []);
+
+  const abrirModal = (disciplina) => {
+    if (!torneioAtivo) {
+      alert("Nenhum torneio ativo no momento. Tente novamente mais tarde.");
+      return;
+    }
+    setDisciplinaSelecionada(disciplina);
+  };
+
+  const entrarNoTorneio = async () => {
+    if (!disciplinaSelecionada || !user) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1. Registrar o usuário no torneio (se ainda não estiver registrado)
+      const registroResponse = await fetch('http://localhost:3000/api/participantes/registrar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          id_usuario: user.id,
+          disciplina_competida: disciplinaSelecionada.nome === "Língua Inglesa" ? "Inglês" : disciplinaSelecionada.nome
+        })
+      });
+
+      const registroData = await registroResponse.json();
+
+      if (!registroData.success) {
+        throw new Error(registroData.error || 'Erro ao registrar no torneio');
+      }
+
+      // 2. Redirecionar para o torneio específico
+      const nomeUsuario = formatarNomeParaURL(
+        user.nome || user.displayName || user.email?.split('@')[0] || "usuario"
+      );
+
+      // Definir a rota baseado na disciplina
+      let rota = "";
+      switch(disciplinaSelecionada.id) {
+        case "matematica":
+          rota = `/matematica-original/${nomeUsuario}`;
+          break;
+        case "programacao":
+          rota = `/programacao-original/${nomeUsuario}`;
+          break;
+        case "ingles":
+          rota = `/ingles-original/${nomeUsuario}`;
+          break;
+        default:
+          throw new Error('Disciplina inválida');
+      }
+
+      // Preparar dados para enviar na navegação
+      const userData = {
+        nome: user.nome || user.displayName || user.email?.split('@')[0] || "Usuário",
+        nomeURL: nomeUsuario,
+        email: user.email,
+        id: user.uid || user.id,
+        autenticado: true,
+        disciplina: disciplinaSelecionada.nome,
+        disciplinaId: disciplinaSelecionada.id,
+        torneio_id: torneioAtivo.id
+      };
+
+      // 3. Navegar para o torneio
+      navigate(rota, { 
+        state: { 
+          user: userData,
+          disciplina: disciplinaSelecionada,
+          torneio: torneioAtivo
+        } 
+      });
+
+    } catch (error) {
+      console.error('Erro ao entrar no torneio:', error);
+      setError(error.message || 'Erro ao entrar no torneio. Tente novamente.');
+    } finally {
+      setLoading(false);
+      setDisciplinaSelecionada(null);
+    }
+  };
+
+  // Função para formatar nome para URL
   const formatarNomeParaURL = (nome) => {
     if (!nome) return "usuario";
     
     return nome
       .toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos
-      .replace(/\s+/g, '-') // Substitui espaços por hífens
-      .replace(/[^a-z0-9\-]/g, '') // Remove caracteres especiais
-      .substring(0, 30); // Limita o tamanho
-  };
-
-  const abrirModal = (disciplina) => {
-    setDisciplinaSelecionada(disciplina);
-  };
-
-  const escolherModelo = (tipo) => {
-    setSelectedModel(tipo);
-    
-    // Verificar se o usuário está logado
-    if (!user) {
-      setShowLoginModal(true);
-    } else {
-      // Se estiver logado, redirecionar para o torneio específico
-      redirecionarParaTorneio(tipo);
-    }
-  };
-
-  const redirecionarParaTorneio = (tipo) => {
-    if (!disciplinaSelecionada || !user) return;
-    
-    const disciplinaId = disciplinaSelecionada.id;
-    const nomeUsuario = formatarNomeParaURL(
-      user.nome || user.displayName || user.email?.split('@')[0] || "usuario"
-    );
-    
-    let rota = "";
-    
-    // Definir a rota baseado na disciplina, modelo e nome do usuário
-    if (tipo === "original") {
-      rota = `/${disciplinaId}-original/${nomeUsuario}`;
-    } else if (tipo === "premio") {
-      rota = `/${disciplinaId}-premio/${nomeUsuario}`;
-    }
-    
-    // Preparar dados adicionais para enviar na navegação
-    const userData = {
-      nome: user.nome || user.displayName || user.email?.split('@')[0] || "Usuário",
-      nomeURL: nomeUsuario,
-      email: user.email,
-      id: user.uid || user.id,
-      autenticado: true,
-      disciplina: disciplinaSelecionada.nome,
-      modelo: tipo === "original" ? "Original" : "Prêmio",
-      disciplinaId: disciplinaId
-    };
-    
-    // Navegar para a rota com os dados do usuário no estado
-    navigate(rota, { 
-      state: { 
-        user: userData,
-        disciplina: disciplinaSelecionada,
-        modelo: tipo
-      } 
-    });
-    
-    // Fechar o modal
-    setDisciplinaSelecionada(null);
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9\-]/g, '')
+      .substring(0, 30);
   };
 
   const handleLoginRedirect = () => {
@@ -130,21 +183,12 @@ export default function EntrarTorneio() {
     document.body.style.overflow = disciplinaSelecionada ? "hidden" : "auto";
   }, [disciplinaSelecionada]);
 
-  // Função para lidar com o redirecionamento após login
-  useEffect(() => {
-    // Se o usuário acabou de fazer login e há um modelo selecionado
-    if (user && selectedModel && disciplinaSelecionada) {
-      redirecionarParaTorneio(selectedModel);
-      setSelectedModel(null);
-    }
-  }, [user, selectedModel, disciplinaSelecionada]);
-
   return (
     <Layout>
       <div className="bg-gradient-to-b from-gray-50 to-white">
         
         {/* Header Hero */}
-    <div className="relative overflow-hidden -mx-8 -mt-8 h-[95vh] md:h-[90vh] lg:h-[90vh] text-white">
+        <div className="relative overflow-hidden -mx-8 -mt-8 h-[95vh] md:h-[90vh] lg:h-[90vh] text-white">
           {/* Background com imagem/vídeo */}
           <div className="absolute inset-0">
             <img 
@@ -190,10 +234,41 @@ export default function EntrarTorneio() {
                 Torneio <span className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 bg-clip-text text-transparent animate-gradient">Comaes</span>
               </motion.h1>
               
-              <motion.p
+              {/* Mensagem de status do torneio */}
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.6 }}
+                className="mb-8"
+              >
+                {torneioAtivo ? (
+                  <div className="inline-flex items-center gap-3 bg-green-500/20 backdrop-blur-sm px-6 py-3 rounded-full border border-green-400/30">
+                    <FaCheckCircle className="text-green-300" />
+                    <span className="text-xl text-green-100 font-semibold">
+                      Torneio Ativo! {torneioAtivo.titulo}
+                    </span>
+                  </div>
+                ) : error ? (
+                  <div className="inline-flex items-center gap-3 bg-red-500/20 backdrop-blur-sm px-6 py-3 rounded-full border border-red-400/30">
+                    <IoClose className="text-red-300" />
+                    <span className="text-xl text-red-100 font-semibold">
+                      {error}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-3 bg-blue-500/20 backdrop-blur-sm px-6 py-3 rounded-full border border-blue-400/30">
+                    <FaSpinner className="text-blue-300 animate-spin" />
+                    <span className="text-xl text-blue-100 font-semibold">
+                      Verificando torneios...
+                    </span>
+                  </div>
+                )}
+              </motion.div>
+              
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.6 }}
                 className="text-xl md:text-2xl lg:text-3xl text-blue-100 max-w-4xl mx-auto mb-8 drop-shadow-lg"
               >
                 Desafie seus limites, mostre seu conhecimento e conquiste seu lugar no pódio
@@ -202,7 +277,7 @@ export default function EntrarTorneio() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.6 }}
+                transition={{ delay: 0.5, duration: 0.6 }}
                 className="flex flex-wrap justify-center gap-6 mb-10"
               >
                 <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-3 rounded-full border border-white/30 shadow-lg">
@@ -223,7 +298,7 @@ export default function EntrarTorneio() {
             {/* Seta para baixo */}
             <motion.div
               animate={{ y: [0, 10, 0] }}
-      transition={{ duration: 2, repeat: Infinity }}
+              transition={{ duration: 2, repeat: Infinity }}
               className="absolute bottom-8 left-1/2 transform -translate-x-1/2"
             >
               <svg
@@ -258,7 +333,7 @@ export default function EntrarTorneio() {
               Escolha Sua Disciplina
             </h2>
             <p className="text-gray-600 text-center mb-10 text-lg">
-              Clique em uma disciplina para ver os modelos de torneio disponíveis
+              Clique em uma disciplina para entrar no torneio ativo
             </p>
             
             <div className="flex flex-col sm:flex-row justify-center items-center sm:items-stretch gap-6 max-w-6xl mx-auto">
@@ -268,9 +343,11 @@ export default function EntrarTorneio() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  whileHover={{ scale: 1.03, y: -8 }}
-                  className="group cursor-pointer bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 w-full sm:w-64 md:w-72 lg:w-80"
-                  onClick={() => abrirModal(disc)}
+                  whileHover={{ scale: torneioAtivo ? 1.03 : 1, y: torneioAtivo ? -8 : 0 }}
+                  className={`group cursor-pointer bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 w-full sm:w-64 md:w-72 lg:w-80 ${
+                    !torneioAtivo ? 'opacity-70 cursor-not-allowed' : ''
+                  }`}
+                  onClick={() => torneioAtivo && abrirModal(disc)}
                 >
                   <div className="relative h-48 md:h-56 overflow-hidden">
                     <img
@@ -282,6 +359,11 @@ export default function EntrarTorneio() {
                     <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
                       <span className="text-white text-sm font-semibold">{disc.nivel}</span>
                     </div>
+                    {!torneioAtivo && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <span className="text-white font-semibold text-lg">Torneio Indisponível</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="p-5 md:p-6">
@@ -295,8 +377,15 @@ export default function EntrarTorneio() {
                           {disc.participantes.toLocaleString()} participantes
                         </span>
                       </div>
-                      <button className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:shadow-lg transition-shadow text-sm md:text-base w-full sm:w-auto">
-                        Ver Torneios
+                      <button 
+                        className={`px-4 py-2 rounded-xl text-white transition-shadow text-sm md:text-base w-full sm:w-auto ${
+                          torneioAtivo 
+                            ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:shadow-lg' 
+                            : 'bg-gray-400 cursor-not-allowed'
+                        }`}
+                        disabled={!torneioAtivo}
+                      >
+                        {torneioAtivo ? 'Ver Torneio' : 'Indisponível'}
                       </button>
                     </div>
                   </div>
@@ -305,7 +394,7 @@ export default function EntrarTorneio() {
             </div>
           </div>
 
-          {/* MODAL de Seleção de Torneio */}
+          {/* MODAL de Seleção de Torneio - AGORA SÓ TEM "ENTRAR NO ORIGINAL" */}
           <AnimatePresence>
             {disciplinaSelecionada && (
               <motion.div
@@ -313,21 +402,23 @@ export default function EntrarTorneio() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4"
-                onClick={() => setDisciplinaSelecionada(null)}
+                onClick={() => !loading && setDisciplinaSelecionada(null)}
               >
                 <motion.div
                   initial={{ scale: 0.85 }}
                   animate={{ scale: 1 }}
                   exit={{ scale: 0.85 }}
-                  className="relative bg-white w-full max-w-2xl rounded-2xl p-6 shadow-xl z-[10000]"
+                  className="relative bg-white w-full max-w-md rounded-2xl p-6 shadow-xl z-[10000]"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <button
-                    onClick={() => setDisciplinaSelecionada(null)}
-                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-10"
-                  >
-                    <IoClose size={30} />
-                  </button>
+                  {!loading && (
+                    <button
+                      onClick={() => setDisciplinaSelecionada(null)}
+                      className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-10"
+                    >
+                      <IoClose size={30} />
+                    </button>
+                  )}
 
                   <div className="relative mb-6">
                     <img
@@ -342,83 +433,61 @@ export default function EntrarTorneio() {
                     </div>
                   </div>
 
-                  <p className="text-gray-600 text-center mb-6">
-                    Escolha qual modelo de torneio pretende usar.
-                  </p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* MODELO ORIGINAL */}
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      className="p-5 border rounded-2xl bg-gray-50 shadow-md"
-                    >
-                      <p className="text-center font-semibold text-blue-700 mb-2">
-                        Modelo Original - Gratuito
+                  {loading ? (
+                    <div className="py-8 flex flex-col items-center justify-center">
+                      <FaSpinner className="text-4xl text-blue-600 animate-spin mb-4" />
+                      <p className="text-gray-700 text-lg font-medium">
+                        Entrando no torneio...
+                      </p>
+                      <p className="text-gray-500 text-sm mt-2">
+                        Aguarde enquanto preparamos tudo para você
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-gray-600 text-center mb-6">
+                        Clique no botão abaixo para entrar no torneio ativo de {disciplinaSelecionada.nome}.
                       </p>
 
-                      <ul className="text-gray-600 text-sm space-y-2 mb-6">
-                        <li className="flex items-center gap-2">
-                          <FaCheckCircle className="text-blue-600" />
-                          Perguntas fixas
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <FaCheckCircle className="text-blue-600" />
-                          Tempo padrão
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <FaCheckCircle className="text-blue-600" />
-                          Pontuação base
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <FaCheckCircle className="text-blue-600" />
-                          Ranking simples
-                        </li>
-                      </ul>
+                      {torneioAtivo && (
+                        <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                          <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                            <IoTrophy className="text-yellow-500" />
+                            Torneio Ativo
+                          </h3>
+                          <p className="text-sm text-gray-700">{torneioAtivo.titulo}</p>
+                          <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
+                            <span className="flex items-center gap-1">
+                              <FaClock />
+                              {new Date(torneioAtivo.inicia_em).toLocaleDateString('pt-BR')} - {new Date(torneioAtivo.termina_em).toLocaleDateString('pt-BR')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
 
-                      <button
-                        onClick={() => escolherModelo("original")}
-                        className="w-full py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
-                      >
-                        Entrar no Original
-                      </button>
-                    </motion.div>
+                      <div className="space-y-4">
+                        {/* Botão único - ENTRAR NO TORNEIO */}
+                        <button
+                          onClick={entrarNoTorneio}
+                          disabled={loading}
+                          className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                          <FaCheckCircle />
+                          Entrar no Torneio
+                        </button>
 
-                    {/* MODELO PRÊMIO */}
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      className="p-5 border rounded-2xl bg-gray-50 shadow-md"
-                    >
-                      <p className="text-center font-semibold text-green-700 mb-2">
-                        Modelo Prêmio - AOA 500
-                      </p>
+                        <p className="text-center text-sm text-gray-500">
+                          Você será redirecionado para a página do torneio
+                        </p>
 
-                      <ul className="text-gray-600 text-sm space-y-2 mb-6">
-                        <li className="flex items-center gap-2">
-                          <FaCheckCircle className="text-green-600" />
-                          Perguntas dinâmicas
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <FaCheckCircle className="text-green-600" />
-                          Bônus de velocidade
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <FaCheckCircle className="text-green-600" />
-                          Ranking premium
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <FaCheckCircle className="text-green-600" />
-                          Estatísticas avançadas
-                        </li>
-                      </ul>
-
-                      <button
-                        onClick={() => escolherModelo("premio")}
-                        className="w-full py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
-                      >
-                        Entrar no Prêmio
-                      </button>
-                    </motion.div>
-                  </div>
+                        {error && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-red-600 text-sm text-center">{error}</p>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </motion.div>
               </motion.div>
             )}
@@ -458,8 +527,7 @@ export default function EntrarTorneio() {
                     </h2>
                     
                     <p className="text-gray-600 mb-6">
-                      Para participar do {selectedModel === 'original' ? 'Modelo Original' : 'Modelo Prêmio'} do torneio de{" "}
-                      {disciplinaSelecionada?.nome}, você precisa estar autenticado na plataforma COMAES.
+                      Para participar do torneio de {disciplinaSelecionada?.nome}, você precisa estar autenticado na plataforma COMAES.
                     </p>
                     
                     <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 mb-6 border border-blue-200">

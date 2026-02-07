@@ -3,7 +3,6 @@ import Funcao from '../models/Funcao.js';
 import RedefinicaoSenha from '../models/RedefinicaoSenha.js';
 import ConfiguracaoUsuario from '../models/ConfiguracaoUsuario.js';
 import Torneio from '../models/Torneio.js';
-import ParticipanteTorneio from '../models/ParticipanteTorneio.js';
 import Noticia from '../models/Noticia.js';
 import Pergunta from '../models/Pergunta.js';
 import QuestaoMatematica from '../models/QuestaoMatematica.js';
@@ -21,7 +20,6 @@ const models = {
     redefinicaosenha: RedefinicaoSenha,
     configuracaousuario: ConfiguracaoUsuario,
     torneio: Torneio,
-    participantetorneio: ParticipanteTorneio,
     noticia: Noticia,
     pergunta: Pergunta,
     questaomatematica: QuestaoMatematica,

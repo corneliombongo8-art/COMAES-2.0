@@ -37,7 +37,6 @@ const adminService = (token) => {
         'configuracaousuario',
         'conquistausuario',
         'notificacao',
-        'participantetorneio',
         'pergunta',
         'questaoingles',
         'questaomatematica',
@@ -57,17 +56,6 @@ const adminService = (token) => {
 
     const apiClient = createApiClient(token);
     services.getModels = () => apiClient.get('/models').then(res => res.data);
-
-    services.torneio.getParticipants = (torneoId) => {
-        return apiClient.get(`/torneos/${torneoId}/participants`).then(res => res.data);
-    };
-    services.torneio.registerParticipant = (torneoId, usuarioId, disciplina) => {
-        return apiClient.post('/torneos/register-participant', {
-            torneio_id: torneoId,
-            usuario_id: usuarioId,
-            disciplina_competida: disciplina
-        }).then(res => res.data);
-    };
 
     return services;
 };

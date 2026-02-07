@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import adminService from '../../services/adminService';
 import TableModal from './TableModal';
-import TorneoParticipantsManager from './TorneoParticipantsManager';
 
 import { useAuth } from '../../context/AuthContext';
 
@@ -127,20 +126,6 @@ const TableManager = ({ table }) => {
                 { name: 'tipo', label: 'Tipo', type: 'text', required: true },
                 { name: 'conteudo', label: 'Conteúdo (JSON)', type: 'textarea', required: true },
                 { name: 'lido', label: 'Lido', type: 'checkbox' }
-            ]
-        },
-        participantes_torneio: {
-            title: 'Participantes de Torneio',
-            columns: ['id', 'torneio_id', 'usuario_id', 'status', 'pontuacao'],
-            displayColumns: ['ID', 'Torneio ID', 'Usuário ID', 'Status', 'Pontos'],
-            fields: [
-                { name: 'torneio_id', label: 'ID do Torneio', type: 'number', required: true },
-                { name: 'usuario_id', label: 'ID do Usuário', type: 'number', required: true },
-                { name: 'status', label: 'Status', type: 'select', options: ['pendente', 'confirmado', 'removido'] },
-                { name: 'pontuacao', label: 'Pontuação', type: 'number' },
-                { name: 'posicao', label: 'Posição', type: 'number' },
-                { name: 'casos_resolvidos', label: 'Casos Resolvidos', type: 'number' },
-                { name: 'disciplina_competida', label: 'Disciplina', type: 'select', options: ['Matemática', 'Inglês', 'Programação'] }
             ]
         },
         perguntas: {
@@ -402,14 +387,6 @@ const TableManager = ({ table }) => {
                                             </td>
                                         ))}
                                         <td className="px-6 py-4 text-right">
-                                            {table === 'torneos' && (
-                                                <button
-                                                    onClick={() => setExpandedTorneo(expandedTorneo === item.id ? null : item.id)}
-                                                    className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded mr-2 transition text-sm"
-                                                >
-                                                    👥 Participantes
-                                                </button>
-                                            )}
                                             <button
                                                 onClick={() => handleEdit(item)}
                                                 className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded mr-2 transition text-sm"
@@ -424,17 +401,6 @@ const TableManager = ({ table }) => {
                                             </button>
                                         </td>
                                     </tr>
-                                    {/* Expanded Participants Row for Torneos */}
-                                    {table === 'torneos' && expandedTorneo === item.id && (
-                                        <tr>
-                                            <td colSpan={tableInfo.displayColumns.length + 1} className="px-6 py-4 bg-gray-50">
-                                                <TorneoParticipantsManager 
-                                                    torneoId={item.id} 
-                                                    torneoTitle={item.titulo}
-                                                />
-                                            </td>
-                                        </tr>
-                                    )}
                                 </React.Fragment>
                             ))
                         )}

@@ -28,8 +28,9 @@ router.get('/torneos', isAdmin, TorneoController.getAllTorneos);
 router.post('/torneos', isAdmin, TorneoController.createTorneo);
 router.put('/torneos/:id', isAdmin, TorneoController.updateTorneo);
 router.delete('/torneos/:id', isAdmin, TorneoController.deleteTorneo);
-router.get('/torneos/:id/participants', isAdmin, TorneoController.getTorneoParticipants);
-router.post('/torneos/register-participant', isAdmin, TorneoController.registerParticipant);
+router.get('/torneos/:id/participantes', isAdmin, TorneoController.getParticipantes);
+router.post('/torneos/inscrever', isAdmin, TorneoController.inscreverParticipante);
+router.patch('/participantes/:id/pontos', isAdmin, TorneoController.atualizarPontos);
 
 
 // ===== ROTAS GENÉRICAS PARA TODOS OS OUTROS MODELOS =====

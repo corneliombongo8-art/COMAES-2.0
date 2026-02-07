@@ -14,12 +14,12 @@ const Usuario = sequelize.define('Usuario', {
   telefone: {
     type: DataTypes.STRING(20),
     allowNull: false,
-    unique: true,
+    unique: 'usuarios_telefone_unique',
   },
   email: {
     type: DataTypes.STRING(100),
     allowNull: false,
-    unique: true,
+    unique: 'usuarios_email_unique',
     validate: {
       isEmail: true,
     },

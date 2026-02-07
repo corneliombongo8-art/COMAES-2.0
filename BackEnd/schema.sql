@@ -186,33 +186,6 @@ CREATE TABLE `notificacoes` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `participantes_torneio`
---
-
-DROP TABLE IF EXISTS `participantes_torneio`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `participantes_torneio` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `torneio_id` int(11) NOT NULL,
-  `usuario_id` int(11) NOT NULL,
-  `entrou_em` datetime DEFAULT NULL,
-  `status` enum('pendente','confirmado','removido') DEFAULT 'pendente',
-  `pontuacao` decimal(10,2) DEFAULT 0.00,
-  `posicao` int(11) DEFAULT NULL,
-  `casos_resolvidos` int(11) DEFAULT 0,
-  `disciplina_competida` enum('Matemática','Inglês','Programação') DEFAULT NULL,
-  `metadados` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`metadados`)),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `participantes_torneio_torneio_id_usuario_id` (`torneio_id`,`usuario_id`),
-  KEY `participantes_torneio_torneio_id` (`torneio_id`),
-  KEY `usuario_id` (`usuario_id`),
-  CONSTRAINT `participantes_torneio_ibfk_43` FOREIGN KEY (`torneio_id`) REFERENCES `torneios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `participantes_torneio_ibfk_44` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `perguntas`
 --
 
@@ -507,6 +480,45 @@ CREATE TABLE `usuarios` (
   KEY `funcao_id` (`funcao_id`),
   CONSTRAINT `usuarios_ibfk_1` FOREIGN KEY (`funcao_id`) REFERENCES `funcoes` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `participantes_torneios`
+--
+
+DROP TABLE IF EXISTS `participantes_torneios`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `participantes_torneios` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `torneio_id` INT NOT NULL,
+  `usuario_id` INT NOT NULL,
+  `entrou_em` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `status` ENUM('pendente', 'confirmado', 'removido', 'desclassificado') DEFAULT 'pendente',
+  `pontuacao` DECIMAL(10, 2) DEFAULT 0.00,
+  `posicao` INT DEFAULT NULL,
+  `casos_resolvidos` INT DEFAULT 0,
+  `disciplina_competida` ENUM('Matemática', 'Inglês', 'Programação') NOT NULL,
+  `ultima_atividade` DATETIME DEFAULT NULL,
+  `tempo_total` INT DEFAULT 0,
+  `precisao` DECIMAL(5, 2) DEFAULT 0.00,
+  `nivel_atual` ENUM('iniciante', 'intermediário', 'avançado', 'expert') DEFAULT 'iniciante',
+  `conquistas` JSON DEFAULT NULL,
+  `historico_pontuacao` JSON DEFAULT NULL,
+  `metadados` JSON DEFAULT NULL,
+  `criado_em` DATETIME NOT NULL,
+  `atualizado_em` DATETIME NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_participacao_disciplina` (`torneio_id`, `usuario_id`, `disciplina_competida`),
+  KEY `idx_torneio` (`torneio_id`),
+  KEY `idx_usuario` (`usuario_id`),
+  KEY `idx_pontuacao` (`pontuacao`),
+  KEY `idx_posicao` (`posicao`),
+  KEY `idx_status` (`status`),
+  KEY `idx_disciplina` (`disciplina_competida`),
+  CONSTRAINT `participantes_torneios_ibfk_1` FOREIGN KEY (`torneio_id`) REFERENCES `torneios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `participantes_torneios_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 

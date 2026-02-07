@@ -8,11 +8,9 @@ import { Op } from 'sequelize';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import adminRoutes from './routes/adminRoutes.js';
 
 // ===== IMPORTAR TODOS OS MODELS =====
 import Usuario from "./models/User.js";
-import aiEvaluator from './utils/aiEvaluator.js';
 import Funcao from "./models/Funcao.js";
 import RedefinicaoSenha from "./models/RedefinicaoSenha.js";
 import ConfiguracaoUsuario from "./models/ConfiguracaoUsuario.js";
@@ -35,10 +33,8 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // ===== MIDDLEWARES =====
-
 app.use(express.json());
 app.use(cors());
-app.use('/api/admin', adminRoutes);
 
 // ===== UPLOAD & STORAGE =====
 const uploadDir = path.join(process.cwd(), 'uploads');
@@ -153,6 +149,447 @@ app.get("/health", async (req, res) => {
   }
 });
 
+// ===== NOVOS ENDPOINTS PARA TORNEIO ÚNICO COM 3 DISCIPLINAS =====
+
+// 1. Verificar torneio ativo (CORRIGIDO - busca apenas por status 'ativo')
+app.get('/api/torneios/ativo', async (req, res) => {
+  try {
+    const agora = new Date();
+    
+    console.log('🔍 Verificando torneio ativo...');
+    console.log('📅 Data atual:', agora.toISOString());
+    
+    // Buscar QUALQUER torneio com status 'ativo' (não verificar datas)
+    const torneio = await Torneio.findOne({
+      where: {
+        status: 'ativo'
+      },
+      order: [['inicia_em', 'DESC']] // Pega o mais recente
+    });
+    
+    console.log('🏆 Torneio encontrado:', torneio ? 
+      `ID: ${torneio.id}, Título: "${torneio.titulo}", Status: ${torneio.status}` : 
+      'Nenhum');
+    
+    if (!torneio) {
+      return res.json({ 
+        success: true, 
+        ativo: false, 
+        message: 'Nenhum torneio ativo encontrado' 
+      });
+    }
+    
+    // Verificar se está dentro do período (apenas para informação)
+    const inicio = new Date(torneio.inicia_em);
+    const fim = new Date(torneio.termina_em);
+    
+    const dentroDoPeriodo = agora >= inicio && agora <= fim;
+    
+    console.log('⏰ Período do torneio:');
+    console.log('   Início:', inicio.toISOString());
+    console.log('   Término:', fim.toISOString());
+    console.log('   Agora:', agora.toISOString());
+    console.log('   Dentro do período?', dentroDoPeriodo);
+    
+    res.json({ 
+      success: true, 
+      ativo: true, 
+      dentroDoPeriodo,
+      torneio,
+      mensagem: dentroDoPeriodo ? 
+        'Torneio ativo e em andamento' : 
+        'Torneio marcado como ativo mas fora do período programado'
+    });
+  } catch (error) {
+    console.error('❌ Erro ao verificar torneio ativo:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 2. Registrar participante
+app.post('/api/participantes/registrar', async (req, res) => {
+  try {
+    const { id_usuario, disciplina_competida } = req.body;
+    
+    console.log('👤 Registrando participante:', { id_usuario, disciplina_competida });
+    
+    // Primeiro, encontrar torneio ativo
+    const torneio = await Torneio.findOne({
+      where: {
+        status: 'ativo'
+      }
+    });
+    
+    if (!torneio) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Nenhum torneio ativo encontrado' 
+      });
+    }
+    
+    console.log('🎯 Torneio encontrado para registro:', torneio.id);
+    
+    // Formatar disciplina (primeira letra maiúscula)
+    const disciplinaFormatada = disciplina_competida.charAt(0).toUpperCase() + disciplina_competida.slice(1);
+    
+    // Verificar se já existe registro para este usuário nesta disciplina
+    const existente = await ParticipanteTorneio.findOne({
+      where: { 
+        usuario_id: id_usuario, 
+        torneio_id: torneio.id,
+        disciplina_competida: disciplinaFormatada
+      }
+    });
+    
+    if (existente) {
+      console.log('✅ Participante já registrado:', existente.id);
+      return res.json({ 
+        success: true, 
+        data: existente, 
+        message: 'Participante já registrado nesta disciplina' 
+      });
+    }
+    
+    // Criar novo registro
+    const novoParticipante = await ParticipanteTorneio.create({
+      torneio_id: torneio.id,
+      usuario_id: id_usuario,
+      disciplina_competida: disciplinaFormatada,
+      entrou_em: new Date(),
+      status: 'confirmado',
+      pontuacao: 0,
+      casos_resolvidos: 0
+    });
+    
+    console.log('🎉 Novo participante criado:', novoParticipante.id);
+    
+    res.status(201).json({ 
+      success: true, 
+      data: novoParticipante,
+      message: 'Participante registrado com sucesso' 
+    });
+  } catch (error) {
+    console.error('❌ Erro ao registrar participante:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 3. Buscar ranking por disciplina
+app.get('/api/participantes/ranking/:disciplina', async (req, res) => {
+  try {
+    const { disciplina } = req.params;
+    const disciplinaFormatada = disciplina.charAt(0).toUpperCase() + disciplina.slice(1);
+    
+    console.log('📊 Buscando ranking para disciplina:', disciplinaFormatada);
+    
+    // Primeiro encontrar torneio ativo
+    const torneio = await Torneio.findOne({
+      where: {
+        status: 'ativo'
+      }
+    });
+    
+    if (!torneio) {
+      console.log('⚠️ Nenhum torneio ativo para ranking');
+      return res.json({ success: true, data: [] });
+    }
+    
+    // Buscar participantes do torneio na disciplina específica
+    const participantes = await ParticipanteTorneio.findAll({
+      where: { 
+        torneio_id: torneio.id,
+        disciplina_competida: disciplinaFormatada,
+        status: 'confirmado'
+      },
+      include: [{
+        model: Usuario,
+        as: 'usuario',
+        attributes: ['id', 'nome', 'imagem']
+      }],
+      order: [['pontuacao', 'DESC']],
+      limit: 20
+    });
+    
+    console.log(`👥 Encontrados ${participantes.length} participantes para ${disciplinaFormatada}`);
+    
+    // Adicionar posição
+    const ranking = participantes.map((p, index) => ({
+      ...p.toJSON(),
+      posicao: index + 1
+    }));
+    
+    res.json({ success: true, data: ranking });
+  } catch (error) {
+    console.error('❌ Erro ao buscar ranking:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 4. Buscar dados do usuário no torneio por disciplina
+app.get('/api/participantes/usuario/:userId/:disciplina', async (req, res) => {
+  try {
+    const { userId, disciplina } = req.params;
+    const disciplinaFormatada = disciplina.charAt(0).toUpperCase() + disciplina.slice(1);
+    
+    console.log('🔎 Buscando dados do usuário:', { userId, disciplina: disciplinaFormatada });
+    
+    // Encontrar torneio ativo
+    const torneio = await Torneio.findOne({
+      where: {
+        status: 'ativo'
+      }
+    });
+    
+    if (!torneio) {
+      return res.status(404).json({ success: false, error: 'Torneio não encontrado' });
+    }
+    
+    // Buscar participante
+    const participante = await ParticipanteTorneio.findOne({
+      where: { 
+        usuario_id: userId, 
+        torneio_id: torneio.id,
+        disciplina_competida: disciplinaFormatada
+      },
+      include: [{
+        model: Usuario,
+        as: 'usuario',
+        attributes: ['id', 'nome', 'imagem', 'email']
+      }]
+    });
+    
+    if (!participante) {
+      console.log('⚠️ Participante não encontrado');
+      return res.status(404).json({ success: false, error: 'Participante não encontrado' });
+    }
+    
+    // Calcular posição no ranking desta disciplina
+    const todosParticipantes = await ParticipanteTorneio.findAll({
+      where: { 
+        torneio_id: torneio.id,
+        disciplina_competida: disciplinaFormatada,
+        status: 'confirmado'
+      },
+      order: [['pontuacao', 'DESC']]
+    });
+    
+    const posicao = todosParticipantes.findIndex(p => p.usuario_id == userId) + 1;
+    
+    console.log('✅ Dados do participante encontrados, posição:', posicao);
+    
+    res.json({ 
+      success: true, 
+      data: {
+        ...participante.toJSON(),
+        posicao: posicao || todosParticipantes.length + 1
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar dados do usuário:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 5. Atualizar pontuação do participante
+app.post('/api/participantes/atualizar-pontuacao', async (req, res) => {
+  try {
+    const { usuario_id, disciplina_competida, pontuacao_adicionada, casos_adicionados } = req.body;
+    
+    console.log('📈 Atualizando pontuação:', { usuario_id, disciplina_competida, pontuacao_adicionada });
+    
+    // Encontrar torneio ativo
+    const torneio = await Torneio.findOne({
+      where: {
+        status: 'ativo'
+      }
+    });
+    
+    if (!torneio) {
+      return res.status(404).json({ success: false, error: 'Torneio não encontrado' });
+    }
+    
+    const participante = await ParticipanteTorneio.findOne({
+      where: { 
+        usuario_id, 
+        torneio_id: torneio.id,
+        disciplina_competida
+      }
+    });
+    
+    if (!participante) {
+      return res.status(404).json({ success: false, error: 'Participante não encontrado' });
+    }
+    
+    // Atualizar pontuação
+    const novaPontuacao = (Number(participante.pontuacao) || 0) + (Number(pontuacao_adicionada) || 0);
+    const novosCasos = (Number(participante.casos_resolvidos) || 0) + (Number(casos_adicionados) || 0);
+    
+    participante.pontuacao = novaPontuacao;
+    participante.casos_resolvidos = novosCasos;
+    
+    await participante.save();
+    
+    console.log('✅ Pontuação atualizada:', { 
+      usuario_id, 
+      disciplina: disciplina_competida, 
+      novaPontuacao, 
+      novosCasos 
+    });
+    
+    res.json({ 
+      success: true, 
+      data: participante,
+      message: 'Pontuação atualizada com sucesso' 
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar pontuação:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 6. Buscar todos torneios ativos
+app.get('/api/torneios/ativos', async (req, res) => {
+  try {
+    const torneios = await Torneio.findAll({
+      where: {
+        status: 'ativo'
+      },
+      order: [['inicia_em', 'DESC']]
+    });
+    
+    res.json({ success: true, data: torneios });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 7. Dashboard de estatísticas
+app.get('/api/torneios/dashboard', async (req, res) => {
+  try {
+    // Buscar torneio ativo
+    const torneioAtivo = await Torneio.findOne({
+      where: {
+        status: 'ativo'
+      }
+    });
+    
+    if (!torneioAtivo) {
+      return res.json({ 
+        success: true, 
+        data: { 
+          torneio_ativo: false,
+          mensagem: 'Nenhum torneio ativo no momento'
+        }
+      });
+    }
+    
+    const agora = new Date();
+    const inicio = new Date(torneioAtivo.inicia_em);
+    const fim = new Date(torneioAtivo.termina_em);
+    
+    // Verificar se está dentro do período
+    const dentroDoPeriodo = agora >= inicio && agora <= fim;
+    
+    // Contar participantes por disciplina
+    const participantesMatematica = await ParticipanteTorneio.count({
+      where: { 
+        torneio_id: torneioAtivo.id,
+        disciplina_competida: 'Matemática',
+        status: 'confirmado'
+      }
+    });
+    
+    const participantesIngles = await ParticipanteTorneio.count({
+      where: { 
+        torneio_id: torneioAtivo.id,
+        disciplina_competida: 'Inglês',
+        status: 'confirmado'
+      }
+    });
+    
+    const participantesProgramacao = await ParticipanteTorneio.count({
+      where: { 
+        torneio_id: torneioAtivo.id,
+        disciplina_competida: 'Programação',
+        status: 'confirmado'
+      }
+    });
+    
+    // Calcular progresso (se estiver dentro do período)
+    let progresso = 0;
+    if (dentroDoPeriodo) {
+      const inicioMs = inicio.getTime();
+      const fimMs = fim.getTime();
+      const agoraMs = agora.getTime();
+      progresso = Math.min(100, Math.max(0, ((agoraMs - inicioMs) / (fimMs - inicioMs)) * 100));
+    }
+    
+    res.json({ 
+      success: true, 
+      data: {
+        torneio_ativo: true,
+        dentro_do_periodo: dentroDoPeriodo,
+        torneio: {
+          id: torneioAtivo.id,
+          titulo: torneioAtivo.titulo,
+          inicio: torneioAtivo.inicia_em,
+          termino: torneioAtivo.termina_em,
+          progresso: parseFloat(progresso.toFixed(2))
+        },
+        estatisticas: {
+          total_participantes: participantesMatematica + participantesIngles + participantesProgramacao,
+          por_disciplina: {
+            matematica: participantesMatematica,
+            ingles: participantesIngles,
+            programacao: participantesProgramacao
+          }
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erro no dashboard:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 8. Endpoint DEBUG: Mostrar todos torneios com detalhes
+app.get('/api/debug/torneios', async (req, res) => {
+  try {
+    const agora = new Date();
+    
+    const torneios = await Torneio.findAll({
+      order: [['id', 'ASC']]
+    });
+    
+    const torneiosComDetalhes = torneios.map(t => {
+      const torneioObj = t.toJSON();
+      const inicio = new Date(torneioObj.inicia_em);
+      const fim = new Date(torneioObj.termina_em);
+      
+      return {
+        ...torneioObj,
+        inicio_iso: inicio.toISOString(),
+        fim_iso: fim.toISOString(),
+        agora_iso: agora.toISOString(),
+        dentro_periodo: agora >= inicio && agora <= fim,
+        status_verificado: torneioObj.status === 'ativo' && (agora >= inicio && agora <= fim) ? '✅ ATIVO E DENTRO DO PERÍODO' :
+                          torneioObj.status === 'ativo' ? '⚠️ ATIVO MAS FORA DO PERÍODO' :
+                          torneioObj.status === 'indisponivel' ? '❌ INDISPONÍVEL' :
+                          torneioObj.status === 'finalizado' ? '🏁 FINALIZADO' :
+                          '❓ DESCONHECIDO'
+      };
+    });
+    
+    res.json({ 
+      success: true, 
+      agora: agora.toISOString(),
+      data: torneiosComDetalhes 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ===== AUTENTICAÇÃO =====
 app.post('/auth/registro', async (req, res) => {
   try {
@@ -201,20 +638,6 @@ app.post('/auth/login', async (req, res) => {
     const { password, ...userSafe } = user.get({ plain: true });
 
     res.json({ success: true, data: userSafe, token });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/auth/recover', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, error: 'Email é obrigatório.' });
-
-    const user = await Usuario.findOne({ where: { email } });
-    if (!user) return res.status(404).json({ success: false, error: 'Conta não encontrada.' });
-
-    res.json({ success: true, message: 'Verifique seu email para instruções de recuperação.' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -417,36 +840,6 @@ app.get('/usuarios/:id/participacoes', async (req, res) => {
   }
 });
 
-// Ranking global de um usuário
-app.get('/usuarios/:id/ranking-global', async (req, res) => {
-  try {
-    const usuarioId = req.params.id;
-    
-    // Obter todos os usuários com suas pontuações totais
-    const ranking = await ParticipanteTorneio.findAll({
-      attributes: [
-        'usuario_id',
-        [sequelize.fn('SUM', sequelize.col('pontuacao')), 'total_pontos']
-      ],
-      group: ['usuario_id'],
-      order: [[sequelize.literal('total_pontos'), 'DESC']]
-    });
-    
-    const posicao = ranking.findIndex(r => r.usuario_id === Number(usuarioId)) + 1;
-    const totalUsuarios = ranking.length;
-    
-    res.json({ 
-      success: true, 
-      data: { 
-        posicao: posicao > 0 ? posicao : totalUsuarios + 1,
-        totalUsuarios 
-      } 
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 // ===== CRUD TORNEIOS =====
 app.get('/torneios', async (req, res) => {
   try {
@@ -462,31 +855,6 @@ app.get('/torneios/:id', async (req, res) => {
     const torneio = await Torneio.findByPk(req.params.id, { include: ['criador', 'participantes'] });
     if (!torneio) return res.status(404).json({ success: false, error: 'Torneio não encontrado.' });
     res.json({ success: true, data: torneio });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/torneios', async (req, res) => {
-  try {
-    const { titulo, slug, descricao, inicia_em, termina_em, maximo_participantes, criado_por } = req.body;
-
-    if (!titulo || !slug || !criado_por) {
-      return res.status(400).json({ success: false, error: 'Campos obrigatórios em falta.' });
-    }
-
-    const novo = await Torneio.create({
-      titulo,
-      slug,
-      descricao,
-      inicia_em,
-      termina_em,
-      maximo_participantes,
-      criado_por,
-      status: 'rascunho'
-    });
-
-    res.status(201).json({ success: true, data: novo });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -548,21 +916,6 @@ app.get('/torneios/:id/participantes', async (req, res) => {
   }
 });
 
-app.get('/torneios/:id/usuario/:userId', async (req, res) => {
-  try {
-    const { id: torneioId, userId } = req.params;
-    const participante = await ParticipanteTorneio.findOne({
-      where: { torneio_id: torneioId, usuario_id: userId },
-      include: [{ model: Usuario, as: 'usuario', attributes: ['id', 'nome', 'imagem', 'email'] }]
-    });
-    if (!participante) return res.status(404).json({ success: false, error: 'Usuário não participando deste torneio.' });
-    res.json({ success: true, data: participante });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-  
-
 app.get('/torneios/:id/questoes/matematica', async (req, res) => {
   try {
     const torneioId = req.params.id;
@@ -610,7 +963,7 @@ app.get('/torneios/:id/ranking', async (req, res) => {
       include: [{ model: Usuario, as: 'usuario', attributes: ['id', 'nome', 'imagem', 'email'] }], 
       order: [['pontuacao', 'DESC']] 
     });
-    // atribuir posições
+    
     let pos = 1;
     const ranked = participantes.map(p => ({ 
       id: p.id,
@@ -622,84 +975,6 @@ app.get('/torneios/:id/ranking', async (req, res) => {
     }));
     res.json({ success: true, data: ranked });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.get('/torneios/:id/usuario/:usuario_id', async (req, res) => {
-  try {
-    const { id: torneioId, usuario_id: usuarioId } = req.params;
-    const participante = await ParticipanteTorneio.findOne({ 
-      where: { torneio_id: torneioId, usuario_id: usuarioId },
-      include: ['usuario']
-    });
-    if (!participante) {
-      return res.status(404).json({ success: false, error: 'Participante não encontrado.' });
-    }
-    
-    // Get user's position in ranking
-    const allParticipantes = await ParticipanteTorneio.findAll({ 
-      where: { torneio_id: torneioId, status: 'confirmado' },
-      order: [['pontuacao', 'DESC']]
-    });
-    let posicao = allParticipantes.findIndex(p => p.usuario_id === Number(usuarioId)) + 1;
-    
-    res.json({ success: true, data: { ...participante.get({ plain: true }), posicao } });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Submeter respostas do participante - avalia e atualiza pontuação
-app.post('/torneios/:id/submit', async (req, res) => {
-  try {
-    const torneioId = req.params.id;
-    const { usuario_id, respostas } = req.body;
-    if (!usuario_id || !Array.isArray(respostas)) return res.status(400).json({ success: false, error: 'usuario_id e respostas são obrigatórios.' });
-
-    // respostas: [{ pergunta_id, resposta }]
-    const itemsForAI = [];
-    let totalScore = 0;
-    for (const r of respostas) {
-      const pergunta = await Pergunta.findByPk(r.pergunta_id);
-      if (!pergunta) continue;
-      // se existe resposta correta no banco, compare
-      if (pergunta.resposta_correta) {
-        const correct = JSON.stringify(pergunta.resposta_correta);
-        const given = JSON.stringify(r.resposta);
-        if (correct === given) {
-          totalScore += (pergunta.pontos || 1);
-        }
-      } else {
-        itemsForAI.push({ pergunta_id: r.pergunta_id, texto: pergunta.texto_pergunta, resposta: r.resposta, pontos: pergunta.pontos || 1 });
-      }
-    }
-
-    // Se houver perguntas sem gabarito, pedir IA (se disponível)
-    if (itemsForAI.length > 0) {
-      const aiResults = await aiEvaluator.evaluate(itemsForAI);
-      for (const ai of aiResults) {
-        // ai.score between 0..1
-        totalScore += (ai.score || 0) * (ai.pontos || 1);
-      }
-    }
-
-    // Atualizar participante
-    const participante = await ParticipanteTorneio.findOne({ where: { torneio_id: torneioId, usuario_id } });
-    if (!participante) {
-      // criar participante caso não exista
-      await ParticipanteTorneio.create({ torneio_id: torneioId, usuario_id, status: 'confirmado', pontuacao: totalScore });
-    } else {
-      participante.pontuacao = (Number(participante.pontuacao) || 0) + totalScore;
-      await participante.save();
-    }
-
-    // armazenar tentativa (registro simples)
-    await TentativaTeste.create({ usuario_id, respostas, pontuacao: totalScore, status: 'concluida', concluido_em: new Date() });
-
-    res.json({ success: true, message: 'Respostas avaliadas', pontuacao: totalScore });
-  } catch (error) {
-    console.error('Erro submit torneio:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -717,34 +992,6 @@ app.get('/noticias', async (req, res) => {
   }
 });
 
-app.get('/noticias/:id', async (req, res) => {
-  try {
-    const noticia = await Noticia.findByPk(req.params.id, {
-      include: [
-        { model: Usuario, as: 'autor', attributes: ['id', 'nome', 'imagem'] }
-      ]
-    });
-    if (!noticia) return res.status(404).json({ success: false, error: 'Notícia não encontrada.' });
-    res.json({ success: true, data: noticia });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== PERGUNTAS =====
-app.get('/perguntas/:tipo', async (req, res) => {
-  try {
-    const { tipo } = req.params;
-    const perguntas = await Pergunta.findAll({
-      where: { tipo },
-      order: [['ordem_indice', 'ASC']]
-    });
-    res.json({ success: true, data: perguntas });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 // ===== INICIALIZAÇÃO =====
 async function startServer() {
   try {
@@ -757,23 +1004,16 @@ async function startServer() {
     setupAssociations();
 
     // Sincronizar modelos
-    await sequelize.sync({ alter: true });
+    await sequelize.sync();
     console.log("✅ Modelos sincronizados!");
-
-    const [tables] = await sequelize.query("SHOW TABLES");
-    console.log("📊 Tabelas no banco:");
-    tables.forEach(table => {
-      const tableName = Object.values(table)[0];
-      console.log(`   - ${tableName}`);
-    });
 
     app.listen(port, () => {
       console.log(`🚀 Servidor rodando: http://localhost:${port}`);
       console.log(`📡 Health: http://localhost:${port}/health`);
-      console.log(`📋 Usuários: http://localhost:${port}/usuarios`);
-      console.log(`🏆 Torneios: http://localhost:${port}/torneios`);
-      console.log(`🔔 Notificações: http://localhost:${port}/usuarios/:id/notificacoes`);
-      console.log(`📰 Notícias: http://localhost:${port}/noticias`);
+      console.log(`🏆 Torneio Ativo: http://localhost:${port}/api/torneios/ativo`);
+      console.log(`📊 Dashboard: http://localhost:${port}/api/torneios/dashboard`);
+      console.log(`🐛 Debug Torneios: http://localhost:${port}/api/debug/torneios`);
+      console.log(`👥 Ranking Inglês: http://localhost:3000/api/participantes/ranking/ingles`);
     });
   } catch (error) {
     console.error("❌ Erro na inicialização:", error.message);
