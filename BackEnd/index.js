@@ -1004,7 +1004,7 @@ async function startServer() {
     setupAssociations();
 
     // Sincronizar modelos
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
     console.log("✅ Modelos sincronizados!");
 
     app.listen(port, () => {
