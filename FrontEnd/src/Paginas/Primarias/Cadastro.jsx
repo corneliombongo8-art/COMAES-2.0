@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from 'framer-motion';
 import { useAuth } from "../../context/AuthContext";
+import logotipo from "../../assets/logotipo.png";
+import Cartaz from "../../assets/Cartaz.jpeg";
 
 function Cadastro() {
   const { login } = useAuth();
@@ -116,7 +118,7 @@ function Cadastro() {
     <div className="w-full h-screen grid grid-cols-1 md:grid-cols-2 bg-white text-black">
       <div className="hidden md:flex items-center justify-center bg-blue-600">
         <img
-          src
+          src={Cartaz}
           alt="Comaes Cadastro Preview"
           className="w-4/5 h-auto rounded-2xl shadow-2xl"
         />
@@ -124,7 +126,14 @@ function Cadastro() {
 
       <div className="flex items-center justify-center p-8">
         <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-200">
-          <h1 className="text-4xl font-bold text-blue-600 text-center mb-4">Comaes</h1>
+         {/* Logo no formulário */}
+          <div className="flex justify-center mb-4">
+            <img 
+              src={logotipo}
+              alt="Comaes" 
+              className="h-24 w-auto object-contain"
+            />
+          </div>
           <p className="text-center text-gray-700 mb-6">
             Cadastre-se na melhor plataforma de competições educativas online
           </p>

@@ -13,6 +13,7 @@ export default function MatematicaOriginal() {
   const { user, token } = useAuth();
   const avaliacaoRef = useRef(null);
   const containerRef = useRef(null);
+  const enunciadoRef = useRef(null);
 
   // Estados do torneio
   const [torneio, setTorneio] = useState(null);
@@ -106,7 +107,7 @@ export default function MatematicaOriginal() {
     return () => clearInterval(intervalId);
   }, [torneio]);
 
-  // Filtrar questões por dificuldade
+  // Filtrar questões por dificuldade - CORRIGIDO: scroll após mudar nível
   useEffect(() => {
     if (questoes.length > 0) {
       const filtradas = questoes.filter(q => q.dificuldade === nivelSelecionado);
@@ -114,6 +115,18 @@ export default function MatematicaOriginal() {
       if (filtradas.length > 0) {
         setQuestaoIndex(0);
         setQuestaoTime(TEMPO_QUESTAO);
+        setResposta("");
+        setResultado("");
+        setPontuacao(null);
+        // Scroll para o enunciado após mudar de nível
+        setTimeout(() => {
+          if (enunciadoRef.current) {
+            enunciadoRef.current.scrollIntoView({ 
+              behavior: 'smooth',
+              block: 'center'
+            });
+          }
+        }, 200);
       }
     }
   }, [nivelSelecionado, questoes]);
@@ -133,6 +146,30 @@ export default function MatematicaOriginal() {
       }
     };
   }, [autoAvancarTimer]);
+
+  // SCROLL AUTOMÁTICO QUANDO A QUESTÃO MUDA (próxima questão)
+  useEffect(() => {
+    if (questoesFiltradas.length > 0 && enunciadoRef.current) {
+      setTimeout(() => {
+        enunciadoRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 200);
+    }
+  }, [questaoIndex]);
+
+  // SCROLL AUTOMÁTICO NO CARREGAMENTO INICIAL
+  useEffect(() => {
+    if (questoesFiltradas.length > 0 && enunciadoRef.current) {
+      setTimeout(() => {
+        enunciadoRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 500);
+    }
+  }, [questoesFiltradas]);
 
   // VERIFICAR TORNEIO ATIVO
   useEffect(() => {
@@ -531,6 +568,7 @@ export default function MatematicaOriginal() {
       {/* HEADER */}
       <div className="bg-blue-600 text-white shadow-md">
         <div className="flex items-center justify-between p-4">
+          
           <button 
             onClick={() => navigate("/entrar-no-torneio")} 
             className="flex items-center gap-1 border border-white px-2 py-1 text-[10px] sm:px-3 sm:py-1.5 sm:text-xs md:px-4 md:py-2 md:text-sm rounded hover:bg-white hover:text-blue-600 transition"
@@ -666,8 +704,11 @@ export default function MatematicaOriginal() {
             </div>
           ) : (
             <>
-              {/* ENUNCIADO */}
-              <div className="w-full max-w-4xl bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-600 rounded-xl shadow p-4">
+              {/* ENUNCIADO - COM REF PARA SCROLL */}
+              <div 
+                ref={enunciadoRef}
+                className="w-full max-w-4xl bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-600 rounded-xl shadow p-4"
+              >
                 <h3 className="text-lg font-bold text-blue-700 mb-2">
                   {questoesFiltradas[questaoIndex]?.titulo || `Problema ${questaoIndex + 1}`}
                 </h3>

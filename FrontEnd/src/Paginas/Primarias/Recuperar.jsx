@@ -1,6 +1,9 @@
+// pages/Recuperar.jsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import logotipo from "../../assets/logotipo.png";
+import Cartaz from "../../assets/Cartaz.jpeg";
 
 function Recuperar() {
   const navigate = useNavigate();
@@ -12,11 +15,9 @@ function Recuperar() {
     e.preventDefault();
     let newErrors = {};
 
-    // Validar email
     if (!email) {
       newErrors.email = "Digite o seu email para continuar";
     } else {
-      // Validação simples de email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         newErrors.email = "Digite um email válido";
@@ -27,7 +28,7 @@ function Recuperar() {
       setErrors(newErrors);
       return;
     }
-    // Chamar API de recuperação
+    
     (async () => {
       try {
         const res = await fetch('http://localhost:3000/auth/recover', {
@@ -41,7 +42,6 @@ function Recuperar() {
           return;
         }
         setSucesso(body.message || 'Enviamos um código de confirmação para o seu email.');
-        console.log('Recuperação iniciada para o email:', email);
         setTimeout(() => navigate('/'), 2000);
       } catch (err) {
         setErrors({ geral: 'Erro ao processar recuperação. Tente novamente.' });
@@ -56,18 +56,23 @@ function Recuperar() {
       transition={{ duration: 0.4 }}
       className="w-full h-screen grid grid-cols-1 md:grid-cols-2 bg-white text-black"
     >
-      {/* LEFT IMAGE SECTION */}
+      {/* LEFT SECTION - IMAGE/CARTZ BACKGROUND */}
       <motion.div
         initial={{ opacity: 0, x: -40 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
-        className="hidden md:flex items-center justify-center bg-blue-600"
+        className="hidden md:flex flex-col items-center justify-center bg-cover bg-center bg-no-repeat relative"
+        style={{ 
+          backgroundImage: 'linear-gradient(rgba(37, 99, 235, 0.85), rgba(37, 99, 235, 0.85)), url("/images/banner-recuperacao.jpg")' 
+        }}
       >
-        <img
-          src="/comaes-preview.png"
-          alt="Comaes Recuperação Preview"
-          className="w-4/5 h-auto rounded-2xl shadow-2xl"
-        />
+        <div className="hidden md:flex items-center justify-center">
+          <img 
+            src={Cartaz} 
+            alt="Comaes" 
+            className="w-4/5 h-auto rounded-2xl shadow-2xl"
+          />
+        </div>
       </motion.div>
 
       {/* RIGHT SECTION (FORM) */}
@@ -78,12 +83,26 @@ function Recuperar() {
           transition={{ duration: 0.5 }}
           className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-200"
         >
+          {/* Logo no formulário */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex justify-center mb-4"
+          >
+            <img 
+              src={logotipo}
+              alt="Comaes" 
+              className="h-24 w-auto object-contain"
+            />
+          </motion.div>
+
           {/* TITLE */}
           <motion.h1
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-4xl font-bold text-blue-600 text-center mb-4"
+            className="text-3xl font-bold text-blue-600 text-center mb-2"
           >
             Recuperar Conta
           </motion.h1>
@@ -122,6 +141,17 @@ function Recuperar() {
                 <p className="text-red-600 text-sm mt-1">{errors.email}</p>
               )}
             </motion.div>
+
+            {/* ERROR MESSAGE */}
+            {errors.geral && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-red-600 text-sm text-center p-3 bg-red-50 rounded-lg border border-red-200"
+              >
+                {errors.geral}
+              </motion.div>
+            )}
 
             {/* SUCCESS MESSAGE */}
             {sucesso && (

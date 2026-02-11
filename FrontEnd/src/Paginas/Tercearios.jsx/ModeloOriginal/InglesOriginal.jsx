@@ -23,6 +23,7 @@ export default function InglesOriginal() {
   const { user, token } = useAuth();
   const avaliacaoRef = useRef(null);
   const containerRef = useRef(null);
+  const enunciadoRef = useRef(null);
 
   // Estados do torneio
   const [torneio, setTorneio] = useState(null);
@@ -116,7 +117,7 @@ export default function InglesOriginal() {
     return () => clearInterval(intervalId);
   }, [torneio]);
 
-  // Filtrar questões por dificuldade
+  // Filtrar questões por dificuldade - CORRIGIDO: scroll após mudar nível
   useEffect(() => {
     if (questoes.length > 0) {
       const filtradas = questoes.filter(q => q.dificuldade === nivelSelecionado);
@@ -124,6 +125,15 @@ export default function InglesOriginal() {
       if (filtradas.length > 0) {
         setQuestaoIndex(0);
         setQuestaoTime(TEMPO_QUESTAO);
+        // Scroll para o enunciado após mudar de nível
+        setTimeout(() => {
+          if (enunciadoRef.current) {
+            enunciadoRef.current.scrollIntoView({ 
+              behavior: 'smooth',
+              block: 'center'
+            });
+          }
+        }, 200);
       }
     }
   }, [nivelSelecionado, questoes]);
@@ -143,6 +153,30 @@ export default function InglesOriginal() {
       }
     };
   }, [autoAvancarTimer]);
+
+  // SCROLL AUTOMÁTICO QUANDO A QUESTÃO MUDA (próxima questão)
+  useEffect(() => {
+    if (questoesFiltradas.length > 0 && enunciadoRef.current) {
+      setTimeout(() => {
+        enunciadoRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 200);
+    }
+  }, [questaoIndex]);
+
+  // SCROLL AUTOMÁTICO NO CARREGAMENTO INICIAL
+  useEffect(() => {
+    if (questoesFiltradas.length > 0 && enunciadoRef.current) {
+      setTimeout(() => {
+        enunciadoRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 500);
+    }
+  }, [questoesFiltradas]);
 
   // VERIFICAR TORNEIO ATIVO
   useEffect(() => {
@@ -498,6 +532,7 @@ export default function InglesOriginal() {
       {/* HEADER */}
       <div className="bg-blue-600 text-white shadow-md">
         <div className="flex items-center justify-between p-4">
+
           <button 
             onClick={() => navigate("/entrar-no-torneio")} 
             className="flex items-center gap-1 border border-white px-2 py-1 text-[10px] sm:px-3 sm:py-1.5 sm:text-xs md:px-4 md:py-2 md:text-sm rounded hover:bg-white hover:text-blue-600 transition"
@@ -633,8 +668,11 @@ export default function InglesOriginal() {
             </div>
           ) : (
             <>
-              {/* ENUNCIADO */}
-              <div className="w-full max-w-4xl bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-600 rounded-xl shadow p-4">
+              {/* ENUNCIADO - COM REF PARA SCROLL */}
+              <div 
+                ref={enunciadoRef}
+                className="w-full max-w-4xl bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-600 rounded-xl shadow p-4"
+              >
                 <p className="text-sm md:text-base font-medium text-gray-800">
                   {questoesFiltradas[questaoIndex]?.descricao || questoesFiltradas[questaoIndex]?.enunciado}
                 </p>

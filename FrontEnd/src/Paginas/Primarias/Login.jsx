@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
-import imgPreview from "../../assets/comaes-cadastro.png";
+import logotipo from "../../assets/logotipo.png";
+import Cartaz from "../../assets/Cartaz.jpeg";
 
 function Login() {
   const { login } = useAuth();
@@ -39,7 +40,6 @@ function Login() {
     setIsLoading(true);
 
     try {
-      // Requisição ao backend
       const res = await fetch('http://localhost:3000/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,9 +63,6 @@ function Login() {
     }
   };
 
-  // Função simulada de autenticação
-  // NOTE: Autenticação agora é feita via backend em /auth/login
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -73,19 +70,14 @@ function Login() {
       transition={{ duration: 0.4 }}
       className="w-full h-screen grid grid-cols-1 md:grid-cols-2 bg-white text-black"
     >
-      {/* LEFT SECTION (IMAGE) */}
-      <motion.div
-        initial={{ opacity: 0, x: -40 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6 }}
-        className="hidden md:flex items-center justify-center bg-blue-600"
-      >
-        <img
-          src={imgPreview}
-          alt="Comaes Platform Preview"
-          className="w-4/5 h-auto rounded-2xl shadow-2xl"
-        />
-      </motion.div>
+      {/* LEFT SECTION - IMAGE/CARTZ BACKGROUND */}
+       <div className="hidden md:flex items-center justify-center bg-blue-600">
+              <img
+                src={Cartaz}
+                alt="Comaes Cadastro Preview"
+                className="w-4/5 h-auto rounded-2xl shadow-2xl"
+              />
+            </div>
 
       {/* RIGHT SECTION (FORM) */}
       <div className="flex items-center justify-center p-8">
@@ -95,14 +87,19 @@ function Login() {
           transition={{ duration: 0.5 }}
           className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-200"
         >
-          <motion.h1
+          {/* Logo no formulário */}
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-4xl font-bold text-blue-600 text-center mb-4"
+            className="flex justify-center mb-4"
           >
-            Comaes
-          </motion.h1>
+            <img 
+              src={logotipo} 
+              alt="Comaes" 
+              className="h-24 w-auto object-contain"
+            />
+          </motion.div>
 
           <motion.p
             initial={{ opacity: 0 }}
@@ -126,7 +123,6 @@ function Login() {
 
           {/* FORM */}
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-
             {/* INPUT USUÁRIO */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
               <input

@@ -85,7 +85,7 @@ export default function Home() {
       <div className="flex flex-col">
 
          {/* HERO COM VÍDEO */}
-<div className="relative -mx-8 -mt-8">
+<div className="relative -mx-16 -mt-8">
   <div className="relative h-[95vh] md:h-[90vh] lg:h-[90vh] overflow-hidden">
     {/* Vídeo de background */}
     <video

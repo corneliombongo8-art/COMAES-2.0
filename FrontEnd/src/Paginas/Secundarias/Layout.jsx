@@ -1,4 +1,4 @@
-// Layout.jsx - VERSÃO CORRIGIDA
+// Layout.jsx - VERSÃO CORRIGIDA (SEM SIDEBAR MENOR, MANTENDO ESTRUTURA DO SLIDER)
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,10 +6,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FaBars, FaUserCircle, FaChartLine, FaBell, FaBook, FaTrophy, FaBullhorn,
   FaHeadset, FaCogs, FaInfoCircle, FaFacebook, FaInstagram,
-  FaWhatsapp, FaLinkedin, FaPhone, FaHome
+  FaWhatsapp, FaLinkedin, FaPhone, FaHome, FaTimes
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import NotificacoesModal from "./Notificacoes";
+import logotipo from "../../assets/logotipo.png";
+import logo from "../../assets/logo.png";
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -34,7 +36,6 @@ export default function Layout({ children }) {
     { icon: <FaInfoCircle className="text-2xl" />, text: "Sobre nós", link: "/sobre-nos" },
     { icon: <FaHeadset className="text-2xl" />, text: "Suporte", link: "/suporte" },
   ];
-
 
   // Detecta item ativo pelo pathname
   useEffect(() => {
@@ -83,11 +84,6 @@ export default function Layout({ children }) {
   }, []);
 
   // ANIMAÇÕES
-  const sliderSmallVariants = {
-    hidden: { x: -80, opacity: 0 },
-    visible: { x: 0, opacity: 1, transition: { duration: 0.4 } }
-  };
-
   const sliderBigVariants = {
     hidden: { x: -300, opacity: 0 },
     visible: { x: 0, opacity: 1, transition: { duration: 0.4 } },
@@ -123,8 +119,8 @@ export default function Layout({ children }) {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100 transition-all duration-300 relative">
-      {/* OVERLAY MOBILE */}
+    <div className="flex bg-gray-100 transition-all duration-300 relative">
+      {/* OVERLAY MOBILE/DESKTOP */}
       <AnimatePresence>
         {menuOpen && (
           <motion.div
@@ -132,45 +128,13 @@ export default function Layout({ children }) {
             initial="hidden"
             animate="visible"
             exit="hidden"
-            className="fixed inset-0 bg-black/70 z-40 md:hidden"
+            className="fixed inset-0 bg-black/70 z-40"
             onClick={() => setMenuOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* SLIDER PEQUENO (desktop) */}
-      <motion.div
-        variants={sliderSmallVariants}
-        initial="hidden"
-        animate="visible"
-        className="bg-black text-white fixed top-0 left-0 h-full z-40 shadow-lg w-20 p-3 flex-col items-center hidden md:flex"
-      >
-        <h1 className="text-3xl font-bold mt-1 text-blue-600">C</h1>
-        <ul className="flex flex-col gap-3 mt-8">
-          {menuItems.map((item, index) => (
-            <motion.li
-              key={index}
-              custom={index}
-              variants={menuItemVariants}
-              initial="hidden"
-              animate="visible"
-              className="hover:translate-x-1 hover:scale-95 transition-transform"
-            >
-              <Link
-                to={item.link}
-                onClick={() => setActiveItem(index)}
-                title={item.text}
-                className={`flex items-center justify-center w-10 h-10 rounded-md
-                  ${activeItem === index ? "bg-blue-600 text-white" : "hover:bg-blue-700/70 text-white"}`}
-              >
-                {item.icon}
-              </Link>
-            </motion.li>
-          ))}
-        </ul>
-      </motion.div>
-
-      {/* SLIDER GRANDE (mobile + desktop aberto) */}
+      {/* SLIDER GRANDE - EXATAMENTE COMO ESTAVA ANTES */}
       <AnimatePresence>
         {menuOpen && (
           <motion.div
@@ -181,11 +145,20 @@ export default function Layout({ children }) {
             exit="exit"
             className="bg-black text-white fixed top-0 left-0 h-full z-50 shadow-lg w-80 p-4 flex flex-col"
           >
+            {/* Botão de fechar no canto superior direito */}
+            <button
+              onClick={() => setMenuOpen(false)}
+              className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
+            >
+              <FaTimes className="text-2xl" />
+            </button>
+
             <div className="flex flex-col items-center mb-6">
-              <h1 className="text-3xl font-bold mt-1 text-blue-600">Comaes</h1>
-              <h4 className="text-gray-300 text-center mt-4 text-sm">
-                Plataforma de Competições Educativa Online
-              </h4>
+              <img 
+                src={logotipo} 
+                alt="Comaes" 
+                className="w-30 h-30 object-contain mb-2 mt-2"
+              />
             </div>
 
             <ul className="flex flex-col gap-2">
@@ -223,18 +196,14 @@ export default function Layout({ children }) {
         onClose={() => setShowNotifications(false)} 
       />
 
-      {/* MAIN CONTENT CONTAINER - CORRIGIDO */}
-      <div
-        className={`flex flex-col min-h-screen w-full transition-all duration-300
-          ${menuOpen ? "md:ml-80" : "md:ml-20"}
-          pt-0`}
-      >
-        {/* HEADER - FIXADO CORRETAMENTE */}
+      {/* MAIN CONTENT CONTAINER - SEM MARGEM ESQUERDA */}
+      <div className="flex flex-col min-h-screen w-full pt-0">
+        {/* HEADER - FIXADO */}
         <motion.header
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="bg-blue-600 shadow-md sticky top-0 z-40 w-full"
+          className="bg-blue-600 shadow-md sticky top-0 z-30 w-full"
         >
           <div className="flex items-center justify-between p-3 sm:p-4 max-w-7xl mx-auto">
             <div className="flex items-center gap-2 sm:gap-4">
@@ -244,7 +213,11 @@ export default function Layout({ children }) {
               >
                 <FaBars />
               </button>
-              <h1 className="text-xl sm:text-2xl font-bold text-white">Comaes</h1>
+              <img 
+                src={logo} 
+                alt="Comaes" 
+                className="h-10 sm:h-12 md:h-14 w-auto object-contain"
+              />
             </div>
 
             {/* ICONS */}
@@ -367,7 +340,7 @@ export default function Layout({ children }) {
           </div>
         </motion.header>
 
-        {/* MAIN CONTENT */}
+        {/* MAIN CONTENT - SEM MARGEM ESQUERDA */}
         <motion.main
           variants={mainContentVariants}
           initial="hidden"

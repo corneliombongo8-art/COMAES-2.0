@@ -5,7 +5,7 @@ import { IoClose, IoTrophy, IoSparkles } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Layout from "./Layout";
-import imageTorneio from "../../assets/img.jpg";
+import imageTorneio from "../../assets/celebring.jpeg";
 
 export default function EntrarTorneio() {
   const navigate = useNavigate();
@@ -188,7 +188,7 @@ export default function EntrarTorneio() {
       <div className="bg-gradient-to-b from-gray-50 to-white">
         
         {/* Header Hero */}
-        <div className="relative overflow-hidden -mx-8 -mt-8 h-[95vh] md:h-[90vh] lg:h-[90vh] text-white">
+        <div className="relative overflow-hidden -mx-16 -mt-8 h-[95vh] md:h-[90vh] lg:h-[90vh] text-white">
           {/* Background com imagem/vídeo */}
           <div className="absolute inset-0">
             <img 

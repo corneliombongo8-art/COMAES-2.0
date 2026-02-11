@@ -14,6 +14,7 @@ export default function ProgramacaoOriginal() {
   const editorRef = useRef(null);
   const avaliacaoRef = useRef(null);
   const containerRef = useRef(null);
+  const enunciadoRef = useRef(null);
 
   // Estados do torneio
   const [torneio, setTorneio] = useState(null);
@@ -112,7 +113,7 @@ export default function ProgramacaoOriginal() {
     return () => clearInterval(intervalId);
   }, [torneio]);
 
-  // Filtrar questões por dificuldade
+  // Filtrar questões por dificuldade - CORRIGIDO: scroll após mudar nível
   useEffect(() => {
     if (questoes.length > 0) {
       const filtradas = questoes.filter(q => q.dificuldade === nivelSelecionado);
@@ -123,6 +124,20 @@ export default function ProgramacaoOriginal() {
         const qAtual = filtradas[0];
         setCodigo(qAtual.opcoes?.codigoInicial || qAtual.opcoes?.template || "// Escreva seu código aqui...");
         setTotalTestes(qAtual.opcoes?.testes?.length || 0);
+        setSaida("");
+        setResultado("");
+        setPontuacao(null);
+        setTestesPassados(0);
+        
+        // Scroll para o enunciado após mudar de nível
+        setTimeout(() => {
+          if (enunciadoRef.current) {
+            enunciadoRef.current.scrollIntoView({ 
+              behavior: 'smooth',
+              block: 'center'
+            });
+          }
+        }, 200);
       }
     }
   }, [nivelSelecionado, questoes]);
@@ -161,6 +176,30 @@ export default function ProgramacaoOriginal() {
       }
     };
   }, [autoAvancarTimer]);
+
+  // SCROLL AUTOMÁTICO QUANDO A QUESTÃO MUDA (próxima questão)
+  useEffect(() => {
+    if (questoesFiltradas.length > 0 && enunciadoRef.current) {
+      setTimeout(() => {
+        enunciadoRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 200);
+    }
+  }, [questaoIndex]);
+
+  // SCROLL AUTOMÁTICO NO CARREGAMENTO INICIAL
+  useEffect(() => {
+    if (questoesFiltradas.length > 0 && enunciadoRef.current) {
+      setTimeout(() => {
+        enunciadoRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 500);
+    }
+  }, [questoesFiltradas]);
 
   // VERIFICAR TORNEIO ATIVO
   useEffect(() => {
@@ -428,9 +467,6 @@ export default function ProgramacaoOriginal() {
       const testes = questaoAtual.opcoes?.testes || [];
       const codigoLength = codigo.trim().length;
       
-      // CORREÇÃO: Removida simulação que dava pontos sem resolver
-      // Agora a pontuação é baseada no tamanho do código, igual Inglês e Matemática
-      
       if (testes.length === 0) {
         output += "Executando código...\n";
         output += "✓ Código compilado com sucesso\n";
@@ -474,7 +510,7 @@ export default function ProgramacaoOriginal() {
           output += `Teste ${i + 1}: ${teste.entrada || teste.descricao || "Teste"}\n`;
           
           // Simulação baseada no tamanho do código (quanto mais código, maior chance de passar)
-          const chanceSucesso = Math.min(0.9, codigoLength / 300); // Máximo 90% de chance
+          const chanceSucesso = Math.min(0.9, codigoLength / 300);
           const sucesso = Math.random() < chanceSucesso;
           
           if (sucesso) {
@@ -737,9 +773,12 @@ export default function ProgramacaoOriginal() {
             </div>
           ) : (
             <>
-              {/* ENUNCIADO */}
+              {/* ENUNCIADO - COM REF PARA SCROLL */}
               {questoesFiltradas[questaoIndex] && (
-                <div className="w-full max-w-6xl bg-gradient-to-r from-purple-50 to-pink-100 border-l-4 border-purple-600 rounded-xl shadow p-4 space-y-2">
+                <div 
+                  ref={enunciadoRef}
+                  className="w-full max-w-6xl bg-gradient-to-r from-purple-50 to-pink-100 border-l-4 border-purple-600 rounded-xl shadow p-4 space-y-2"
+                >
                   <h3 className="text-lg font-bold text-purple-700">
                     {questoesFiltradas[questaoIndex].titulo || `Questão ${questaoIndex + 1}`}
                   </h3>
