@@ -18,7 +18,8 @@ import {
   BookOpen,
   Clock,
   CheckCircle,
-  Lock
+  Lock,
+  Sparkles
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
@@ -27,25 +28,156 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
+/* ─── Design tokens ─────────────────────────────────────────── */
+const tokens = {
+  primary:   '#4F6EF7',
+  primarySoft: '#EEF1FE',
+  success:   '#34D399',
+  successSoft: '#ECFDF5',
+  purple:    '#A78BFA',
+  purpleSoft: '#F5F3FF',
+  amber:     '#FBBF24',
+  amberSoft: '#FFFBEB',
+  red:       '#F87171',
+  redSoft:   '#FEF2F2',
+  surface:   '#FFFFFF',
+  bg:        '#F7F8FC',
+  border:    '#E8EAEF',
+  text:      '#0F1117',
+  muted:     '#6B7280',
+  subtle:    '#9CA3AF',
+};
+
+/* ─── Shared card style ──────────────────────────────────────── */
+const cardStyle = {
+  background: tokens.surface,
+  borderRadius: '20px',
+  border: `1px solid ${tokens.border}`,
+  boxShadow: '0 2px 12px rgba(15,17,23,0.05)',
+  padding: '28px',
+  transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+};
+
+/* ─── Custom tooltip ─────────────────────────────────────────── */
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload?.length) {
+    return (
+      <div style={{
+        background: tokens.text,
+        color: '#fff',
+        borderRadius: '10px',
+        padding: '10px 16px',
+        fontSize: '13px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+      }}>
+        {label && <p style={{ marginBottom: 4, opacity: 0.6, fontSize: 11 }}>{label}</p>}
+        {payload.map((p, i) => (
+          <p key={i}><strong>{p.value}</strong> {p.name}</p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+/* ─── Stat card ──────────────────────────────────────────────── */
+function StatCard({ title, value, icon, accent, accentSoft, badge }) {
+  return (
+    <div
+      style={cardStyle}
+      onMouseEnter={e => {
+        e.currentTarget.style.boxShadow = '0 8px 32px rgba(15,17,23,0.10)';
+        e.currentTarget.style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.boxShadow = '0 2px 12px rgba(15,17,23,0.05)';
+        e.currentTarget.style.transform = 'translateY(0)';
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+        <div style={{
+          width: 44, height: 44,
+          borderRadius: 12,
+          background: accentSoft,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: accent,
+        }}>
+          {icon}
+        </div>
+        <span style={{
+          fontSize: 11, fontWeight: 600, letterSpacing: '0.05em',
+          textTransform: 'uppercase', color: tokens.subtle,
+          background: tokens.bg, borderRadius: 6, padding: '3px 8px',
+        }}>
+          {badge}
+        </span>
+      </div>
+      <div style={{ fontSize: 30, fontWeight: 700, color: tokens.text, lineHeight: 1.1, marginBottom: 4 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 14, color: tokens.muted }}>{title}</div>
+    </div>
+  );
+}
+
+/* ─── Section header ─────────────────────────────────────────── */
+function SectionHeader({ title, subtitle, icon }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: tokens.text, marginBottom: 2 }}>{title}</h3>
+        <p style={{ fontSize: 13, color: tokens.muted }}>{subtitle}</p>
+      </div>
+      <div style={{ color: tokens.subtle }}>{icon}</div>
+    </div>
+  );
+}
+
+/* ─── Progress goal card ─────────────────────────────────────── */
+function GoalCard({ title, subtitle, progress, accent, accentSoft }) {
+  const pct = Math.min(Math.max(progress, 0), 100);
+  return (
+    <div style={{
+      background: accentSoft,
+      borderRadius: 14,
+      padding: '16px 18px',
+      marginBottom: 12,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: tokens.text }}>{title}</div>
+          <div style={{ fontSize: 12, color: tokens.muted, marginTop: 2 }}>{subtitle}</div>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: accent }}>{pct.toFixed(0)}%</div>
+      </div>
+      <div style={{ height: 5, background: 'rgba(0,0,0,0.08)', borderRadius: 999, overflow: 'hidden' }}>
+        <div style={{
+          height: '100%',
+          width: `${pct}%`,
+          background: accent,
+          borderRadius: 999,
+          transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)',
+        }} />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Component ─────────────────────────────────────────── */
 function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   
   const [isRedirecting, setIsRedirecting] = useState(false);
   
-  // Verificar se usuário está autenticado
   useEffect(() => {
     if (!user) {
       setIsRedirecting(true);
-      // Redirecionar para login após 2 segundos
-      const timer = setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+      const timer = setTimeout(() => navigate('/login'), 2000);
       return () => clearTimeout(timer);
     }
   }, [user, navigate]);
 
-  // Estado inicial com dados do usuário
   const [userData, setUserData] = useState({
     username: user?.fullName || user?.username || "Usuário COMAES",
     joinDate: user?.registrationDate || new Date().toISOString(),
@@ -57,13 +189,8 @@ function Dashboard() {
     prizesWon: 0
   });
 
-  // Dados de participação em torneios
   const [tournamentHistory, setTournamentHistory] = useState([]);
-
-  // Dados para gráfico de áreas
   const [areaParticipation, setAreaParticipation] = useState([]);
-
-  // Dados para gráfico de progresso do ranking
   const [rankingHistory, setRankingHistory] = useState([
     { month: 'Jan', rank: 100 },
     { month: 'Fev', rank: 90 },
@@ -71,38 +198,26 @@ function Dashboard() {
     { month: 'Abr', rank: 70 },
     { month: 'Mai', rank: 60 },
   ]);
-
-  // Dados para gráfico de pontos por categoria
   const [pointsByCategory, setPointsByCategory] = useState([]);
-
-  // Dados para gráfico de premiações
   const [prizesDistribution, setPrizesDistribution] = useState([
-    { position: '1º Lugar', quantidade: 0, color: '#FFD700' },
-    { position: '2º Lugar', quantidade: 0, color: '#C0C0C0' },
+    { position: '1º Lugar', quantidade: 0, color: tokens.amber },
+    { position: '2º Lugar', quantidade: 0, color: tokens.subtle },
     { position: '3º Lugar', quantidade: 0, color: '#CD7F32' },
   ]);
-
   const [loading, setLoading] = useState(true);
 
-  // Buscar dados dinâmicos do backend
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user?.id) return;
-      
       setLoading(true);
       try {
-        // Fetch participações
         const response = await fetch(`http://localhost:3000/usuarios/${user.id}/participacoes`);
         const result = await response.json();
-        
-        // Fetch ranking global
         const rankingResponse = await fetch(`http://localhost:3000/usuarios/${user.id}/ranking-global`);
         const rankingResult = await rankingResponse.json();
         
         if (result.success) {
           const participacoes = result.data;
-          
-          // Calcular estatísticas
           const totalPoints = participacoes.reduce((acc, p) => acc + Number(p.pontuacao), 0);
           const tournamentsPlayed = participacoes.length;
           const tournamentsWon = participacoes.filter(p => p.posicao === 1).length;
@@ -119,7 +234,6 @@ function Dashboard() {
             joinDate: user?.registrationDate || prev.joinDate
           }));
 
-          // Histórico de torneios
           const history = participacoes.map(p => ({
             id: p.id,
             name: p.torneio?.titulo || "Torneio COMAES",
@@ -128,43 +242,30 @@ function Dashboard() {
             points: Number(p.pontuacao),
             category: p.disciplina_competida || "Geral"
           })).sort((a, b) => new Date(b.date) - new Date(a.date));
-          
           setTournamentHistory(history);
 
-          // Participação por Área (Pie Chart)
           const areas = {};
           participacoes.forEach(p => {
             const area = p.disciplina_competida || "Geral";
             areas[area] = (areas[area] || 0) + 1;
           });
-          
-          const areaData = Object.keys(areas).map((name, index) => ({
-            name,
-            value: areas[name],
-            color: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'][index % 4]
-          }));
-          setAreaParticipation(areaData);
+          const areaColors = [tokens.primary, tokens.success, tokens.amber, tokens.red];
+          setAreaParticipation(Object.keys(areas).map((name, i) => ({
+            name, value: areas[name], color: areaColors[i % 4]
+          })));
 
-          // Pontos por Categoria (Bar Chart)
           const pointsCat = {};
           participacoes.forEach(p => {
             const area = p.disciplina_competida || "Geral";
             pointsCat[area] = (pointsCat[area] || 0) + Number(p.pontuacao);
           });
-          
-          const pointsCatData = Object.keys(pointsCat).map(category => ({
-            category,
-            pontos: pointsCat[category]
-          }));
-          setPointsByCategory(pointsCatData);
+          setPointsByCategory(Object.keys(pointsCat).map(category => ({ category, pontos: pointsCat[category] })));
 
-          // Distribuição de Prêmios
-          const prizes = [
-            { position: '1º Lugar', quantidade: participacoes.filter(p => p.posicao === 1).length, color: '#FFD700' },
-            { position: '2º Lugar', quantidade: participacoes.filter(p => p.posicao === 2).length, color: '#C0C0C0' },
+          setPrizesDistribution([
+            { position: '1º Lugar', quantidade: participacoes.filter(p => p.posicao === 1).length, color: tokens.amber },
+            { position: '2º Lugar', quantidade: participacoes.filter(p => p.posicao === 2).length, color: '#94A3B8' },
             { position: '3º Lugar', quantidade: participacoes.filter(p => p.posicao === 3).length, color: '#CD7F32' },
-          ];
-          setPrizesDistribution(prizes);
+          ]);
         }
       } catch (error) {
         console.error("Erro ao carregar dados do dashboard:", error);
@@ -172,124 +273,114 @@ function Dashboard() {
         setLoading(false);
       }
     };
-
     fetchDashboardData();
   }, [user?.id]);
 
-  // Cards de estatísticas
   const statCards = [
-    {
-      id: 1,
-      title: "Torneios Participados",
-      value: userData.tournamentsPlayed,
-      icon: <Trophy className="h-6 w-6" />,
-      color: "bg-blue-500",
-      change: "Atualizado"
-    },
-    {
-      id: 2,
-      title: "Posição Atual",
-      value: userData.currentRank > 0 ? `#${userData.currentRank}` : "-",
-      icon: <TrendingUp className="h-6 w-6" />,
-      color: "bg-green-500",
-      change: `Ranking global`
-    },
-    {
-      id: 3,
-      title: "Total de Pontos",
-      value: userData.totalPoints.toLocaleString(),
-      icon: <Star className="h-6 w-6" />,
-      color: "bg-purple-500",
-      change: "Carreira"
-    },
-    {
-      id: 4,
-      title: "Prêmios Conquistados",
-      value: userData.prizesWon,
-      icon: <Award className="h-6 w-6" />,
-      color: "bg-yellow-500",
-      change: "Top 3 no pódio"
-    }
+    { title: "Torneios Participados", value: userData.tournamentsPlayed, icon: <Trophy size={20}/>, accent: tokens.primary, accentSoft: tokens.primarySoft, badge: "Total" },
+    { title: "Posição no Ranking", value: userData.currentRank > 0 ? `#${userData.currentRank}` : "—", icon: <TrendingUp size={20}/>, accent: '#10B981', accentSoft: tokens.successSoft, badge: "Global" },
+    { title: "Pontos Acumulados", value: userData.totalPoints.toLocaleString(), icon: <Star size={20}/>, accent: tokens.purple, accentSoft: tokens.purpleSoft, badge: "Carreira" },
+    { title: "Prêmios no Pódio", value: userData.prizesWon, icon: <Award size={20}/>, accent: '#D97706', accentSoft: tokens.amberSoft, badge: "Top 3" },
   ];
 
-  // Se estiver carregando, mostrar spinner
+  const positionStyle = (pos) => {
+    if (pos === 1) return { background: '#FEF9C3', color: '#92400E' };
+    if (pos === 2) return { background: '#F1F5F9', color: '#475569' };
+    if (pos === 3) return { background: '#FFF7ED', color: '#9A3412' };
+    return { background: tokens.primarySoft, color: tokens.primary };
+  };
+
+  const categoryIcon = (cat) => {
+    const map = { 'Matemática': 'M', 'Programação': 'P', 'Inglês': 'I' };
+    return map[cat] || cat?.[0] || '?';
+  };
+  const categoryColors = (cat) => {
+    const map = {
+      'Matemática': { bg: tokens.primarySoft, color: tokens.primary },
+      'Programação': { bg: tokens.successSoft, color: '#059669' },
+    };
+    return map[cat] || { bg: tokens.amberSoft, color: '#92400E' };
+  };
+
   if (loading && user) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <span className="ml-4 text-gray-600">Carregando seu dashboard...</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 16 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: '50%',
+            border: `3px solid ${tokens.border}`,
+            borderTopColor: tokens.primary,
+            animation: 'spin 0.8s linear infinite',
+          }}/>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <span style={{ color: tokens.muted, fontSize: 15 }}>Carregando seu dashboard…</span>
         </div>
       </Layout>
     );
   }
 
-  // Se usuário não está autenticado, mostrar tela de login
   if (!user) {
     return (
       <Layout>
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="bg-gradient-to-br from-red-50 to-orange-50 border border-red-200 rounded-xl p-8 text-center">
-            <div className="flex justify-center mb-6">
-              <div className="p-4 rounded-full bg-gradient-to-r from-red-100 to-orange-100">
-                <LayoutDashboard className="h-12 w-12 text-red-600" />
-              </div>
+        <div style={{ maxWidth: 560, margin: '60px auto', padding: '0 24px' }}>
+          <div style={{
+            ...cardStyle,
+            textAlign: 'center',
+            background: 'linear-gradient(135deg, #FEF2F2 0%, #FFF7ED 100%)',
+            border: `1px solid #FECACA`,
+          }}>
+            <div style={{
+              width: 72, height: 72, borderRadius: '50%',
+              background: '#FEE2E2', margin: '0 auto 24px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <LayoutDashboard size={32} color={tokens.red} />
             </div>
-            
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: tokens.text, marginBottom: 12 }}>
               Acesso Restrito ao Dashboard
             </h2>
-            
-            <p className="text-gray-700 mb-6">
+            <p style={{ fontSize: 15, color: tokens.muted, lineHeight: 1.6, marginBottom: 28 }}>
               Seu dashboard COMAES está disponível apenas para usuários autenticados.
-              <br />
               Faça login ou cadastre-se para acompanhar suas estatísticas e progresso.
             </p>
-            
+
             {isRedirecting ? (
-              <div className="mb-6">
-                <div className="inline-flex items-center justify-center space-x-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                  <span className="text-blue-600 font-medium">Redirecionando para login...</span>
-                </div>
-                <p className="text-gray-500 text-sm mt-2">Você será redirecionado automaticamente em instantes</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                <div style={{
+                  width: 18, height: 18, borderRadius: '50%',
+                  border: `2px solid ${tokens.border}`, borderTopColor: tokens.primary,
+                  animation: 'spin 0.8s linear infinite',
+                }}/>
+                <span style={{ color: tokens.primary, fontSize: 14 }}>Redirecionando para login…</span>
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button
-                  onClick={() => navigate('/login')}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all"
-                >
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                <button onClick={() => navigate('/login')} style={{
+                  padding: '12px 28px', background: tokens.primary, color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                  transition: 'opacity 0.15s',
+                }} onMouseEnter={e=>e.target.style.opacity=0.88} onMouseLeave={e=>e.target.style.opacity=1}>
                   Fazer Login
                 </button>
-                <button
-                  onClick={() => navigate('/cadastro')}
-                  className="px-6 py-3 border border-blue-600 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-all"
-                >
+                <button onClick={() => navigate('/cadastro')} style={{
+                  padding: '12px 28px', background: 'transparent', color: tokens.primary,
+                  border: `1.5px solid ${tokens.primary}`, borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                  transition: 'background 0.15s',
+                }} onMouseEnter={e=>e.target.style.background=tokens.primarySoft} onMouseLeave={e=>e.target.style.background='transparent'}>
                   Cadastrar-se
                 </button>
               </div>
             )}
-            
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <p className="text-sm text-gray-600 mb-3">O que você verá no Dashboard COMAES:</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-gray-700">Estatísticas detalhadas</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-gray-700">Gráficos de progresso</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-gray-700">Histórico de torneios</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-gray-700">Metas e conquistas</span>
-                </div>
+
+            <div style={{ marginTop: 36, paddingTop: 24, borderTop: `1px solid #FECACA` }}>
+              <p style={{ fontSize: 13, color: tokens.muted, marginBottom: 16 }}>O que você verá no Dashboard COMAES:</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, textAlign: 'left' }}>
+                {['Estatísticas detalhadas','Gráficos de progresso','Histórico de torneios','Metas e conquistas'].map(f => (
+                  <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tokens.muted }}>
+                    <CheckCircle size={14} color="#34D399" />
+                    {f}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -298,234 +389,265 @@ function Dashboard() {
     );
   }
 
-  // Usuário autenticado - mostrar dashboard normal
+  /* ── Authenticated dashboard ── */
   return (
     <Layout>
-      {/* Hero Section */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard COMAES</h1>
-            <p className="text-gray-600 mt-2">
-              Bem-vindo de volta, <span className="font-semibold text-blue-600">{userData.username}</span>!
-              Veja suas estatísticas e progresso.
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .dash-anim { animation: fadeUp 0.4s ease both; }
+      `}</style>
+
+      {/* ── Hero ── */}
+      <div className="dash-anim" style={{ marginBottom: 36, animationDelay: '0ms' }}>
+        <div style={{
+          background: `linear-gradient(135deg, ${tokens.primary} 0%, #6B8BF5 100%)`,
+          borderRadius: 24,
+          padding: '32px 36px',
+          color: '#fff',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 16,
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          {/* decorative circles */}
+          <div style={{
+            position: 'absolute', top: -40, right: -40,
+            width: 220, height: 220, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.08)',
+          }}/>
+          <div style={{
+            position: 'absolute', bottom: -60, right: 80,
+            width: 160, height: 160, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.05)',
+          }}/>
+
+          <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Sparkles size={14} style={{ opacity: 0.7 }}/>
+              <span style={{ fontSize: 13, opacity: 0.75, fontWeight: 500, letterSpacing: '0.04em' }}>
+                Dashboard COMAES
+              </span>
+            </div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
+              Bem-vindo de volta, {userData.username}! 👋
+            </h1>
+            <p style={{ fontSize: 14, opacity: 0.75 }}>
+              Acompanhe seu progresso e estatísticas das competições.
             </p>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <div className="text-sm text-gray-600">ID do Usuário</div>
-              <div className="text-sm font-medium text-gray-900">{user.id ? user.id.toString().slice(-8) : 'COMAES-USER'}</div>
+
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6,
+            position: 'relative',
+          }}>
+            <div style={{
+              background: 'rgba(255,255,255,0.15)', borderRadius: 10,
+              padding: '10px 16px', backdropFilter: 'blur(8px)',
+            }}>
+              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2, textAlign: 'right' }}>
+                ID do Usuário
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>
+                {user.id ? user.id.toString().slice(-8) : 'COMAES-USER'}
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-gray-400" />
-              <span className="text-sm text-gray-600">
-                Membro desde {new Date(userData.joinDate).toLocaleDateString('pt-BR')}
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, opacity: 0.75 }}>
+              <Calendar size={13}/>
+              Membro desde {new Date(userData.joinDate).toLocaleDateString('pt-BR')}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {statCards.map((card) => (
-          <div 
-            key={card.id} 
-            className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow duration-300"
-          >
-            <div className="flex items-center justify-between">
-              <div className={`${card.color} p-3 rounded-xl`}>
-                {card.icon}
-              </div>
-              <span className="text-sm font-medium text-gray-600">{card.change}</span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mt-4">{card.value}</h3>
-            <p className="text-gray-600">{card.title}</p>
-          </div>
+      {/* ── Stat cards ── */}
+      <div className="dash-anim" style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: 20, marginBottom: 28, animationDelay: '60ms',
+      }}>
+        {statCards.map((card, i) => (
+          <StatCard key={card.title} {...card} />
         ))}
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Gráfico de Participação por Área */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Participação por Área</h3>
-              <p className="text-gray-600">Número de torneios por categoria</p>
-            </div>
-            <BookOpen className="h-6 w-6 text-blue-500" />
-          </div>
-          <div className="h-80">
+      {/* ── Charts row 1 ── */}
+      <div className="dash-anim" style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: 20, marginBottom: 20, animationDelay: '120ms',
+      }}>
+        {/* Pie – Participação por Área */}
+        <div style={cardStyle}>
+          <SectionHeader title="Participação por Área" subtitle="Número de torneios por categoria" icon={<BookOpen size={18}/>}/>
+          <div style={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
               <RechartsPieChart>
                 <Pie
-                  data={areaParticipation}
-                  cx="50%"
-                  cy="50%"
+                  data={areaParticipation} cx="50%" cy="50%"
                   labelLine={false}
-                  label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={90} innerRadius={42} dataKey="value" paddingAngle={3}
                 >
-                  {areaParticipation.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
+                  {areaParticipation.map((e, i) => <Cell key={i} fill={e.color}/>)}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <Tooltip content={<CustomTooltip/>}/>
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 13 }}/>
               </RechartsPieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Gráfico de Progresso do Ranking */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Evolução do Ranking</h3>
-              <p className="text-gray-600">Histórico de posições nos últimos meses</p>
-            </div>
-            <TrendingUp className="h-6 w-6 text-green-500" />
-          </div>
-          <div className="h-80">
+        {/* Area – Evolução do Ranking */}
+        <div style={cardStyle}>
+          <SectionHeader title="Evolução do Ranking" subtitle="Histórico de posições nos últimos meses" icon={<TrendingUp size={18}/>}/>
+          <div style={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={rankingHistory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" />
-                <YAxis reversed domain={[100, 0]} />
-                <Tooltip />
-                <Area 
-                  type="monotone" 
-                  dataKey="rank" 
-                  stroke="#3B82F6" 
-                  fill="#3B82F6" 
-                  fillOpacity={0.2}
+              <AreaChart data={rankingHistory} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="rankGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={tokens.primary} stopOpacity={0.18}/>
+                    <stop offset="95%" stopColor={tokens.primary} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={tokens.border} vertical={false}/>
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: tokens.subtle }} axisLine={false} tickLine={false}/>
+                <YAxis reversed domain={[100, 0]} tick={{ fontSize: 12, fill: tokens.subtle }} axisLine={false} tickLine={false}/>
+                <Tooltip content={<CustomTooltip/>}/>
+                <Area type="monotone" dataKey="rank" stroke={tokens.primary} strokeWidth={2.5}
+                  fill="url(#rankGrad)" dot={{ r: 4, fill: tokens.primary, strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 6 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
 
-        {/* Gráfico de Pontos por Categoria */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Pontos por Categoria</h3>
-              <p className="text-gray-600">Distribuição de pontos conquistados</p>
-            </div>
-            <BarChart3 className="h-6 w-6 text-purple-500" />
-          </div>
-          <div className="h-80">
+      {/* ── Charts row 2 ── */}
+      <div className="dash-anim" style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: 20, marginBottom: 28, animationDelay: '160ms',
+      }}>
+        {/* Bar – Pontos por Categoria */}
+        <div style={cardStyle}>
+          <SectionHeader title="Pontos por Categoria" subtitle="Distribuição de pontos conquistados" icon={<BarChart3 size={18}/>}/>
+          <div style={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={pointsByCategory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="category" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="pontos" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
+              <BarChart data={pointsByCategory} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={tokens.purple} stopOpacity={1}/>
+                    <stop offset="100%" stopColor={tokens.primary} stopOpacity={1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={tokens.border} vertical={false}/>
+                <XAxis dataKey="category" tick={{ fontSize: 12, fill: tokens.subtle }} axisLine={false} tickLine={false}/>
+                <YAxis tick={{ fontSize: 12, fill: tokens.subtle }} axisLine={false} tickLine={false}/>
+                <Tooltip content={<CustomTooltip/>}/>
+                <Bar dataKey="pontos" fill="url(#barGrad)" radius={[6,6,0,0]} maxBarSize={52}/>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Gráfico de Premiações */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Distribuição de Prêmios</h3>
-              <p className="text-gray-600">Posições conquistadas nos pódios</p>
-            </div>
-            <Medal className="h-6 w-6 text-yellow-500" />
-          </div>
-          <div className="h-80">
+        {/* Pie – Premiações */}
+        <div style={cardStyle}>
+          <SectionHeader title="Distribuição de Prêmios" subtitle="Posições conquistadas nos pódios" icon={<Medal size={18}/>}/>
+          <div style={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
               <RechartsPieChart>
                 <Pie
-                  data={prizesDistribution}
-                  cx="50%"
-                  cy="50%"
+                  data={prizesDistribution} cx="50%" cy="50%"
                   labelLine={false}
                   label={({ position, quantidade }) => `${position}: ${quantidade}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="quantidade"
+                  outerRadius={90} innerRadius={42} dataKey="quantidade" paddingAngle={3}
                 >
-                  {prizesDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
+                  {prizesDistribution.map((e, i) => <Cell key={i} fill={e.color}/>)}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <Tooltip content={<CustomTooltip/>}/>
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 13 }}/>
               </RechartsPieChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* Recent Tournaments & Achievements */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Torneios Recentes */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Torneios Recentes COMAES</h3>
-              <p className="text-gray-600">Últimas competições participadas</p>
-            </div>
-            <Clock className="h-6 w-6 text-gray-500" />
-          </div>
-          <div className="space-y-4">
+      {/* ── Tournaments & Goals ── */}
+      <div className="dash-anim" style={{
+        display: 'grid', gridTemplateColumns: '1fr 340px',
+        gap: 20, marginBottom: 28, animationDelay: '200ms',
+      }}>
+
+        {/* Recent tournaments */}
+        <div style={cardStyle}>
+          <SectionHeader title="Torneios Recentes COMAES" subtitle="Últimas competições participadas" icon={<Clock size={18}/>}/>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {tournamentHistory.slice(0, 5).length > 0 ? (
-              tournamentHistory.slice(0, 5).map((tournament) => (
-                <div 
-                  key={tournament.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className={`p-2 rounded-lg ${
-                      tournament.category === 'Matemática' ? 'bg-blue-100 text-blue-600' :
-                      tournament.category === 'Programação' ? 'bg-green-100 text-green-600' :
-                      'bg-yellow-100 text-yellow-600'
-                    }`}>
-                      {tournament.category === 'Matemática' ? 'M' :
-                       tournament.category === 'Programação' ? 'P' : 'I'}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">{tournament.name}</h4>
-                      <p className="text-sm text-gray-600">
-                        {new Date(tournament.date).toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-6">
-                    <div className="text-center">
-                      <div className={`px-3 py-1 rounded-full ${
-                        tournament.position === 1 ? 'bg-yellow-100 text-yellow-800' :
-                        tournament.position === 2 ? 'bg-gray-100 text-gray-800' :
-                        tournament.position === 3 ? 'bg-orange-100 text-orange-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        <span className="font-bold">{tournament.position}º</span>
+              tournamentHistory.slice(0, 5).map(t => {
+                const cc = categoryColors(t.category);
+                const ps = positionStyle(t.position);
+                return (
+                  <div key={t.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '14px 16px',
+                    background: tokens.bg,
+                    borderRadius: 14,
+                    transition: 'background 0.15s',
+                    cursor: 'default',
+                  }}
+                  onMouseEnter={e=>e.currentTarget.style.background='#EDEEF5'}
+                  onMouseLeave={e=>e.currentTarget.style.background=tokens.bg}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 10,
+                        background: cc.bg, color: cc.color,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontWeight: 700, fontSize: 14,
+                      }}>
+                        {categoryIcon(t.category)}
                       </div>
-                      <p className="text-xs text-gray-600 mt-1">Posição</p>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: tokens.text }}>{t.name}</div>
+                        <div style={{ fontSize: 12, color: tokens.subtle }}>
+                          {new Date(t.date).toLocaleDateString('pt-BR')}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-center">
-                      <div className="font-bold text-gray-900">{tournament.points} pts</div>
-                      <p className="text-xs text-gray-600">Pontos</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{
+                          ...ps,
+                          borderRadius: 8, padding: '3px 10px',
+                          fontSize: 13, fontWeight: 700,
+                        }}>
+                          {t.position}º
+                        </div>
+                        <div style={{ fontSize: 11, color: tokens.subtle, marginTop: 3 }}>Posição</div>
+                      </div>
+                      <div style={{ textAlign: 'center', minWidth: 60 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: tokens.text }}>{t.points}</div>
+                        <div style={{ fontSize: 11, color: tokens.subtle }}>pts</div>
+                      </div>
+                      <ChevronRight size={16} color={tokens.subtle}/>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
-              <div className="text-center py-12 text-gray-500">
-                <Trophy className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <p>Você ainda não participou de nenhum torneio.</p>
-                <button 
-                  onClick={() => navigate('/torneios')}
-                  className="mt-4 text-blue-600 font-medium hover:underline"
-                >
+              <div style={{ textAlign: 'center', padding: '48px 0', color: tokens.subtle }}>
+                <Trophy size={40} style={{ margin: '0 auto 12px', opacity: 0.2 }}/>
+                <p style={{ fontSize: 14 }}>Você ainda não participou de nenhum torneio.</p>
+                <button onClick={() => navigate('/torneios')} style={{
+                  marginTop: 16, background: 'none', border: 'none',
+                  color: tokens.primary, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}>
                   Ver torneios disponíveis
                 </button>
               </div>
@@ -533,106 +655,63 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Conquistas e Metas */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Conquistas COMAES</h3>
-              <p className="text-gray-600">Metas e realizações</p>
-            </div>
-            <Target className="h-6 w-6 text-red-500" />
-          </div>
-          <div className="space-y-4">
-            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold text-gray-900">Top 25 no Ranking</h4>
-                  <p className="text-sm text-gray-600">Faltam 20 posições</p>
-                </div>
-                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-blue-500 rounded-full"
-                    style={{ width: `${(userData.currentRank / 25) * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold text-gray-900">10 Torneios Vencidos</h4>
-                  <p className="text-sm text-gray-600">Faltam {10 - userData.tournamentsWon}</p>
-                </div>
-                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-green-500 rounded-full"
-                    style={{ width: `${(userData.tournamentsWon / 10) * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold text-gray-900">5.000 Pontos Totais</h4>
-                  <p className="text-sm text-gray-600">Faltam {5000 - userData.totalPoints}</p>
-                </div>
-                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-purple-500 rounded-full"
-                    style={{ width: `${(userData.totalPoints / 5000) * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold text-gray-900">Prêmio Diamante</h4>
-                  <p className="text-sm text-gray-600">5 prêmios de ouro</p>
-                </div>
-                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-yellow-500 rounded-full"
-                    style={{ width: `${(prizesDistribution[0].quantidade / 5) * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Goals */}
+        <div style={cardStyle}>
+          <SectionHeader title="Conquistas COMAES" subtitle="Metas e realizações" icon={<Target size={18}/>}/>
+          <GoalCard
+            title="Top 25 no Ranking"
+            subtitle={`Posição atual: ${userData.currentRank || '—'}`}
+            progress={(userData.currentRank > 0 ? (25 / userData.currentRank) * 100 : 0)}
+            accent={tokens.primary}
+            accentSoft={tokens.primarySoft}
+          />
+          <GoalCard
+            title="10 Torneios Vencidos"
+            subtitle={`Faltam ${Math.max(0, 10 - userData.tournamentsWon)} vitórias`}
+            progress={(userData.tournamentsWon / 10) * 100}
+            accent="#10B981"
+            accentSoft={tokens.successSoft}
+          />
+          <GoalCard
+            title="5.000 Pontos Totais"
+            subtitle={`Faltam ${Math.max(0, 5000 - userData.totalPoints).toLocaleString()} pts`}
+            progress={(userData.totalPoints / 5000) * 100}
+            accent={tokens.purple}
+            accentSoft={tokens.purpleSoft}
+          />
+          <GoalCard
+            title="Prêmio Diamante"
+            subtitle="5 prêmios de 1º lugar"
+            progress={(prizesDistribution[0].quantidade / 5) * 100}
+            accent="#D97706"
+            accentSoft={tokens.amberSoft}
+          />
         </div>
       </div>
 
-      {/* Resumo de Dados */}
-      <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-        <h3 className="text-xl font-bold text-gray-900 mb-4">Resumo de Desempenho COMAES</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">
-              {areaParticipation.reduce((acc, area) => acc + area.value, 0)}
-            </div>
-            <p className="text-gray-600">Total de Participações</p>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">
-              {prizesDistribution.reduce((acc, prize) => acc + prize.quantidade, 0)}
-            </div>
-            <p className="text-gray-600">Premiações no Pódio</p>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">
-              {pointsByCategory.reduce((acc, cat) => acc + cat.pontos, 0).toLocaleString()}
-            </div>
-            <p className="text-gray-600">Pontos Totais</p>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-600">
-              {rankingHistory.length > 0 ? (rankingHistory[rankingHistory.length - 1].rank - userData.currentRank) : 0}
-            </div>
-            <p className="text-gray-600">Posições Subidas</p>
+      {/* ── Summary strip ── */}
+      <div className="dash-anim" style={{
+        ...cardStyle,
+        background: `linear-gradient(135deg, ${tokens.primarySoft} 0%, #F5F3FF 100%)`,
+        border: `1px solid #DDE1F7`,
+        animationDelay: '240ms',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 24 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: tokens.text }}>
+            Resumo de Desempenho COMAES
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 32 }}>
+            {[
+              { label: 'Total de Participações', value: areaParticipation.reduce((a,b) => a + b.value, 0), color: tokens.primary },
+              { label: 'Premiações no Pódio', value: prizesDistribution.reduce((a,b) => a + b.quantidade, 0), color: '#10B981' },
+              { label: 'Pontos Totais', value: pointsByCategory.reduce((a,b) => a + b.pontos, 0).toLocaleString(), color: tokens.purple },
+              { label: 'Posições Subidas', value: rankingHistory.length > 0 ? rankingHistory[rankingHistory.length-1].rank - userData.currentRank : 0, color: '#D97706' },
+            ].map(s => (
+              <div key={s.label} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 12, color: tokens.muted, marginTop: 2 }}>{s.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

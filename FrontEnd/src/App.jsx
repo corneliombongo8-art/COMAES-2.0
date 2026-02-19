@@ -1,9 +1,12 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import Login from "./Paginas/Primarias/Login";
-import Cadastro from "./Paginas/Primarias/Cadastro"
+//import Login from "./Paginas/Primarias/Login";
+//import Cadastro from "./Paginas/Primarias/Cadastro"
+
+import AuthContainer from "./Paginas/Primarias/AuthContainer";
 import Recuperar from "./Paginas/Primarias/Recuperar";
 import { AuthProvider } from './context/AuthContext';
+import ProtectedAdminRoute from './context/ProtectedAdminRoute';
 
 import Layout from "./Paginas/Secundarias/Layout";
 import Home from "./Paginas/Secundarias/Home";
@@ -26,8 +29,9 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/cadastro" element={<Cadastro />} />
+          {/* Depois (mantenha ambas as rotas apontando para o mesmo componente): */}
+          <Route path="/login" element={<AuthContainer />} />
+          <Route path="/cadastro" element={<AuthContainer initialMode="cadastro" />} />
           <Route path="/recuperar-senha" element={<Recuperar />} />
 
           <Route path="/layout" element={<Layout />} />
@@ -35,7 +39,7 @@ export default function App() {
           <Route path="/entrar-no-torneio" element={<EntrarTorneio />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
           <Route path="/painel" element={<Dashboard />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
           <Route path="/portal-de-noticias" element={<Noticias />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/sobre-nos" element={<Sobre />} />
